@@ -21,6 +21,7 @@ app.use('/api/games', gameRoutes);
 // SOCKET.IO
 const Game = require('./models/gameModel');
 const Player = require('./models/playerModel');
+const db = require('./db');
 
 const currentTricks = {}; // { [gameCode]: [{ playerId, card }, ...] }
 
@@ -164,6 +165,33 @@ io.on('connection', (socket) => {
       // Reset trick for this game
       currentTricks[gameCode] = [];
     }
+  });
+
+  socket.on('skip-round', ({ gameCode }) => {
+    // 1. Increment rounds_completed
+    db.query('UPDATE games SET rounds_completed = rounds_completed + 1, phase = "betting" WHERE code = ?', [gameCode], (err) => {
+      if (err) {
+        return;
+      }
+      // 2. Get the game and players
+      Game.findGameByCode(gameCode, (err2, game) => {
+        if (err2 || !game) return;
+        Player.getPlayersByGameId(game.id, (err3, players) => {
+          if (err3) return;
+          // 3. Shuffle and deal new hands
+          const deck = generateShuffledDeck();
+          players.forEach((player, i) => {
+            const hand = deck.slice(i * 13, (i + 1) * 13);
+            Player.setPlayerHand(player.id, hand, (err4) => {
+              // Emit the new hand to this player
+              io.to(player.id.toString()).emit('new-hand', { playerId: player.id, hand });
+            });
+          });
+          // Emit round-skipped to the whole room
+          io.to(gameCode).emit('round-skipped', { message: "Round skipped: total bets < 11. New hands have been dealt." });
+        });
+      });
+    });
   });
 });
 

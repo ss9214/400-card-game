@@ -229,7 +229,10 @@ exports.finishRound = (req, res) => {
                       io.to(player.id.toString()).emit('new-hand', { playerId: player.id, hand });
                       if (handsDone === freshPlayers.length) {
                         // All hands dealt, respond success
-                        res.json({ success: true });
+                        db.query('UPDATE games SET rounds_completed = rounds_completed + 1 WHERE code = ?', [code], (err6) => {
+                          if (err6) return res.status(500).json({ error: err6.message });
+                          res.json({ success: true });
+                        });
                       }
                     });
                   });

@@ -20,6 +20,7 @@ export default function GamePlay() {
   const [tricksWon, setTricksWon]    = useState({});
   const gameCode = localStorage.getItem('gameCode');
   const playerId = parseInt(localStorage.getItem('playerId'), 10);
+  const [roundSkippedMsg, setRoundSkippedMsg] = useState('');
 
   // Helper: load players and bets from backend
   const loadPlayersAndBets = async () => {
@@ -82,19 +83,15 @@ export default function GamePlay() {
         && Object.keys(bets).length === players.length) {
       const total = players.reduce((sum, p) => sum + (bets[p.id] || 0), 0);
       if (total < 11) {
-        // advance the starter for next cycle
-        setStartBetIdx(idx => (idx + 1) % players.length);
-  
         // clear bets and re-enter betting
         setBets({});
         setBetting(true);
-        setBetIdx((startBetIdx + 1) % players.length);
   
-        // ask the server to reshuffle & deal a new round
-        socket.emit('start-game', { gameCode });
+        // ask the server to skip the round, increment rounds_completed, and deal new hands
+        socket.emit('skip-round', { gameCode });
       }
     }
-  }, [bettingPhase, bets, players, startBetIdx, gameCode]);
+  }, [bettingPhase, bets, players, gameCode]);
 
   // handle incoming plays
   useEffect(() => {
@@ -197,6 +194,15 @@ export default function GamePlay() {
     return () => socket.off('new-hand');
   }, []);
 
+  useEffect(() => {
+    const handleRoundSkipped = ({ message }) => {
+      setRoundSkippedMsg(message);
+      setTimeout(() => setRoundSkippedMsg(''), 4000); // Hide after 4 seconds
+    };
+    socket.on('round-skipped', handleRoundSkipped);
+    return () => socket.off('round-skipped', handleRoundSkipped);
+  }, []);
+
   return (
     <div className="gameplay-container">
       {/* Indicator at top middle */}
@@ -279,6 +285,10 @@ export default function GamePlay() {
           </tbody>
         </table>
       </div>
+
+      {roundSkippedMsg && (
+        <div className="round-skipped-banner">{roundSkippedMsg}</div>
+      )}
     </div>
   );
 }
