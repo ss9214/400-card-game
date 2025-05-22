@@ -16,13 +16,11 @@ export default function GamePlay() {
   const [bets, setBets]            = useState({});
   const [bettingPhase, setBetting] = useState(false);
   const [currentBetIdx, setBetIdx] = useState(0);
-  const [startBetIdx, setStartBetIdx] = useState(0);
   const [tricksWon, setTricksWon]    = useState({});
   const gameCode = localStorage.getItem('gameCode');
   const playerId = parseInt(localStorage.getItem('playerId'), 10);
   const [roundSkippedMsg, setRoundSkippedMsg] = useState('');
 
-  // Helper: load players and bets from backend
   const loadPlayersAndBets = async () => {
     const p = await api.get(`/games/${gameCode}/players`);
     p.data.sort((a, b) => a.id - b.id);
@@ -38,13 +36,17 @@ export default function GamePlay() {
 
     // Get current game state
     const gameState = await api.get(`/games/${gameCode}/state`);
+    console.log(gameState);
+    const roundsCompleted = gameState.data.roundsCompleted || 0;
+    const starterIdx = roundsCompleted % 4;
+    console.log(starterIdx);
+    setBetIdx(starterIdx);
     
     // Only enter betting phase if the game is actually in betting phase
     if (gameState.data.phase === 'betting') {
       const placed = Object.keys(byId).length;
       if (placed < p.data.length) {
         setBetting(true);
-        setBetIdx((gameState.data.currentBetIdx + placed) % p.data.length);
       }
     } else {
       setBetting(false);
@@ -64,18 +66,29 @@ export default function GamePlay() {
   // join socket room and listen for bet-placed events
   useEffect(() => {
     socket.emit('join-lobby', { gameCode, playerId });
-    socket.on('bet-placed', ({ playerId: pid, bet, nextIdx }) => {
-      setBets(prev => ({ ...prev, [pid]: bet }));
-      if (nextIdx < players.length) {
-        setBetIdx(nextIdx);
-      } else {
-        setBetting(false);
-      }
-    });
-    return () => {
-      socket.off('bet-placed');
+
+    const handleBetPlaced = ({ playerId: pid, bet, nextIdx }) => {
+      setBets(prev => {
+        const updatedBets = { ...prev, [pid]: bet };
+
+        // Check if all 4 players have placed their bets
+        if (Object.keys(updatedBets).length === 4) {
+          setBetting(false); // End betting phase on the frontend
+          setBetIdx(0); // Reset bet index for the start of the next round (backend will handle the actual start player)
+        } else {
+          setBetIdx(nextIdx); // Move to the next bettor
+        }
+
+        return updatedBets;
+      });
     };
-  }, [gameCode, playerId, players]);
+
+    socket.on('bet-placed', handleBetPlaced);
+
+    return () => {
+      socket.off('bet-placed', handleBetPlaced);
+    };
+  }, [gameCode, playerId]); // Removed players dependency as it's no longer strictly needed here
 
   useEffect(() => {
     if (!bettingPhase
@@ -108,27 +121,6 @@ export default function GamePlay() {
   }, [playerId, players]);
 
   useEffect(() => {
-    // sum up how many tricks have been won so far
-    const total = Object.values(tricksWon).reduce((s, n) => s + n, 0);
-    if (total === 13) {
-      // 1) tell the server to score & reset bets/round_scores
-      api.post(`/games/finish-round/${gameCode}`).then(() => {
-        // 2) rotate who bets first next round
-        setStartBetIdx(s => (s + 1) % players.length);
-  
-        // 3) clear local state for the new round
-        setTricksWon({});
-        setBets({});
-        setBetting(true);
-        setBetIdx((startBetIdx + 1) % players.length);
-  
-        // 4) ask the server to reshuffle & deal a new hand
-        socket.emit('start-game', { gameCode });
-      });
-    }
-  }, [tricksWon, gameCode, players.length, startBetIdx]);
-
-  useEffect(() => {
     const handleTrickFinished = ({ winnerId, trick }) => {
       setTricksWon(prev => ({
         ...prev,
@@ -152,7 +144,7 @@ export default function GamePlay() {
       bet: val,
       gameCode: gameCode
     });
-    const next = currentBetIdx + 1;
+    const next = (currentBetIdx + 1) % 4;
     setBets(prev => ({ ...prev, [who.id]: val }));
     setBetIdx(next);
     socket.emit('bet-placed', { playerId: who.id, bet: val, nextIdx: next });
@@ -203,92 +195,119 @@ export default function GamePlay() {
     return () => socket.off('round-skipped', handleRoundSkipped);
   }, []);
 
+  useEffect(() => {
+    const handleScoresUpdated = ({ players: updatedPlayers }) => {
+      setPlayers(prevPlayers =>
+        prevPlayers.map(p => {
+          const updated = updatedPlayers.find(up => up.id === p.id);
+          return updated ? { ...p, gameScore: updated.gameScore } : p;
+        })
+      );
+    };
+    socket.on('scores-updated', handleScoresUpdated);
+    return () => socket.off('scores-updated', handleScoresUpdated);
+  }, []);
+
+  useEffect(() => {
+    const handleRoundFinished = () => {
+      setTricksWon({});
+      setBets({});
+      setBetting(true);
+      setPlayed({});
+      setTrick([]);
+      loadPlayersAndBets();
+    };
+    socket.on('round-finished', handleRoundFinished);
+    return () => socket.off('round-finished', handleRoundFinished);
+  }, []);
+
   return (
-    <div className="gameplay-container">
-      {/* Indicator at top middle */}
-      {bettingPhase && (
-        <div className="bet-indicator">
-          It is {players[currentBetIdx]?.name}'s turn to bet!
-        </div>
-      )}
-
-      {/* Bet modal only for the current bettor */}
-      {bettingPhase && playerId === players[currentBetIdx]?.id && (
-        <BetModal
-          player={players[currentBetIdx]}
-          minBet={2}
-          onSubmit={submitBet}
-        />
-      )}
-
-      {/* Top-right: overall game scores */}
-      <div className="scoreboard-top">
-        <table>
-          <thead><tr><th>Name</th><th>Score</th></tr></thead>
-          <tbody>
-            {players.map(p => (
-              <tr key={p.id}>
-                <td>{p.name}</td>
-                <td>{p.gameScore}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Center table */}
-      <div className="table-center">
-        {players.map((p, i) => {
-          const pos = ['bottom','left','top','right'][(
-            i - players.findIndex(x => x.id === playerId) + 4
-          ) % 4];
-          return (
-            <div key={p.id} className={`table-card ${pos}`}>
-              {playedCards[p.id] && (
-                <img
-                  src={`/cards/${playedCards[p.id]}.svg`}
-                  alt=""
-                  style={{ height: '100px' }}
-                />
-              )}
-              <div className="player-name">{p.name}</div>
+    <div>
+        <div className="gameplay-container">
+        {/* Indicator at top middle */}
+        {bettingPhase && (
+            <div className="bet-indicator">
+            It is {players[currentBetIdx]?.name}'s turn to bet!
             </div>
-          );
-        })}
-      </div>
+        )}
 
-      {/* Hand */}
-      <div className="hand-container">
-        {hand.map((card, idx) => (
-          <div
-            key={idx}
-            className={`card-wrapper ${!isPlayable(card) ? 'disabled-card' : ''}`}
-            onClick={() => play(card)}
-          >
-            <img src={`/cards/${card}.svg`} alt={card} />
-          </div>
-        ))}
-      </div>
+        {/* Bet modal only for the current bettor */}
+        {bettingPhase && playerId === players[currentBetIdx]?.id && (
+            <BetModal
+            player={players[currentBetIdx]}
+            minBet={2}
+            onSubmit={submitBet}
+            />
+        )}
 
-      {/* Bottom-right: round bets & tricks */}
-      <div className="scoreboard-round">
-        <table>
-          <thead><tr><th>Name</th><th>Bet</th><th>Won</th></tr></thead>
-          <tbody>
-            {players.map(p => (
-              <tr key={p.id}>
-                <td>{p.name}</td>
-                <td>{bets[p.id] ?? '-'}</td>
-                <td>{tricksWon[p.id] || 0}</td>
-              </tr>
+        {/* Top-right: overall game scores */}
+        <div className="scoreboard-top">
+            <table className="scoreboard-top-table">
+            <thead><tr><th>Name</th><th>Score</th></tr></thead>
+            <tbody>
+                {players.map(p => (
+                <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td>{p.gameScore}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
+
+        {/* Center table */}
+        <div className="table-center">
+            {players.map((p, i) => {
+            const pos = ['bottom','left','top','right'][(
+                i - players.findIndex(x => x.id === playerId) + 4
+            ) % 4];
+            return (
+                <div key={p.id} className={`table-card ${pos}`}>
+                {playedCards[p.id] && (
+                    <img
+                    src={`/cards/${playedCards[p.id]}.svg`}
+                    alt=""
+                    style={{ height: '100px' }}
+                    />
+                )}
+                <div className="player-name">{p.name}</div>
+                </div>
+            );
+            })}
+        </div>
+
+        {/* Hand */}
+        <div className="hand-container">
+            {hand.map((card, idx) => (
+            <div
+                key={idx}
+                className={`card-wrapper ${!isPlayable(card) ? 'disabled-card' : ''}`}
+                onClick={() => play(card)}
+            >
+                <img src={`/cards/${card}.svg`} alt={card} />
+            </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+        </div>
 
-      {roundSkippedMsg && (
-        <div className="round-skipped-banner">{roundSkippedMsg}</div>
-      )}
+        {roundSkippedMsg && (
+            <div className="round-skipped-banner">{roundSkippedMsg}</div>
+        )}
+        </div>
+        {/* Bottom-right: round bets & tricks */}
+        <div className="scoreboard-round">
+            <table>
+            <thead><tr><th>Name</th><th>Bet</th><th>Won</th></tr></thead>
+            <tbody>
+                {players.map(p => (
+                <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td>{bets[p.id] ?? '-'}</td>
+                    <td>{tricksWon[p.id] || 0}</td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
     </div>
   );
 }

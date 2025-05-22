@@ -3,19 +3,39 @@
 
 /* Top scoreboard */
 .scoreboard-top {
+  width: 165px;
   position: absolute; top: 16px; right: 16px;
-  background: rgba(255,255,255,0.9); border:1px solid #ccc;
+  background: rgba(255,255,255,0.9); border:1px solid #000000;
+  border-radius:5px;
+  text-align: center;
 }
 .scoreboard-top table { border-collapse: collapse; }
-.scoreboard-top th,td { padding:4px 8px; }
+.scoreboard-top th,td { padding:4px 8px; border:0.5px solid #555555;}
+
+.scoreboard-top-table th:first-child,
+.scoreboard-top-table td:first-child {
+  width: 120px;   /* Name column wider */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scoreboard-top-table th:last-child,
+.scoreboard-top-table td:last-child {
+  width: 45px;    /* Score column narrower */
+  text-align: right;
+}
 
 /* Round scoreboard */
 .scoreboard-round {
+  width: 165px;
   position: absolute; bottom: 16px; right: 16px;
-  background: rgba(255,255,255,0.9); border:1px solid #ccc;
+  background: rgba(255,255,255,0.9); border:1px solid #000000;
+  border-radius:5px;
+  text-align: center;
 }
 .scoreboard-round table { border-collapse: collapse; }
-.scoreboard-round th,td { padding:4px 8px; }
+.scoreboard-round th,td { padding:4px 8px; border:0.5px solid #555555;}
 
 /* Bet modal already in Bet.css */
 

@@ -175,27 +175,23 @@ exports.recordTrickWin = (req, res) => {
   });
 };
 
-// Called at end of round to compute scores, reset round state
-exports.finishRound = (req, res) => {
-  const code = req.params.code.toUpperCase();
+exports.finishRoundInternal = (code, callback) => {
+  code = code.toUpperCase();
   Game.findGameByCode(code, (err, game) => {
-    if (err || !game) return res.status(404).json({ error: 'Game not found' });
+    if (err || !game) return callback && callback(err || new Error('Game not found'));
 
     Player.getPlayersByGameId(game.id, (err2, players) => {
-      if (err2) return res.status(500).json({ error: 'Failed to fetch players' });
+      if (err2) return callback && callback(err2);
 
       // Calculate each player's game_score delta
       const updates = players.map(p => {
         let delta = 0;
         const { bet, roundScore } = p;
-        if (roundScore >= bet) {
-          if (bet >= 8) delta = bet * 3;
-          else if (bet >= 6) delta = bet * 2;
-          else delta = bet;
-        } else {
-          if (bet >= 6) delta = -bet * 2;
-          else delta = -bet;
-        }
+        console.log(p)
+        if (bet >= 8) delta = bet * 3;
+        else if (bet >= 6) delta = bet * 2;
+        else delta = bet;
+        if (roundScore < bet) delta = delta * -1 
         return { id: p.id, delta };
       });
 
@@ -209,20 +205,49 @@ exports.finishRound = (req, res) => {
             // Reset bets and round_scores
             Player.resetRound(game.id, (e2) => {
               if (errs.length || e2) {
-                return res.status(500).json({ error: errs.concat(e2) });
+                return callback && callback(errs.concat(e2));
               }
               // Reset phase to betting for next round
               db.query('UPDATE games SET phase = ? WHERE code = ?', ['betting', code], (err3) => {
-                if (err3) return res.status(500).json({ error: err3.message });
+                if (err3) return callback && callback(err3);
 
                 // --- DEAL NEW HANDS ---
                 const deck = generateShuffledDeck();
                 // Re-fetch players to get their IDs in the right order
                 Player.getPlayersByGameId(game.id, (err4, freshPlayers) => {
-                  if (err4) return res.status(500).json({ error: err4 });
+                  if (err4) return callback && callback(err4);
                   let handsDone = 0;
                   freshPlayers.forEach((player, i) => {
-                    const hand = deck.slice(i * 13, (i + 1) * 13);
+                    const suitOrder = {
+                        clubs: 0,
+                        diamonds: 1,
+                        spades: 2,
+                        hearts: 3
+                      };
+                    const rankOrder = {
+                        2: 0,
+                        3: 1,
+                        4: 2,
+                        5: 3,
+                        6: 4,
+                        7: 5,
+                        8: 6,
+                        9: 7,
+                        10: 8,
+                        jack: 9,
+                        queen: 10,
+                        king: 11,
+                        ace: 12,
+                    };
+                    const hand = deck.slice(i * 13, (i + 1) * 13).sort((a, b) => {
+                        const rankA = a.split('_of_')[0];
+                        const rankB = b.split('_of_')[0];
+                        return rankOrder[rankA] - rankOrder[rankB];
+                    }).sort((a, b) => {
+                        const suitA = a.split('_of_')[1];
+                        const suitB = b.split('_of_')[1];
+                        return suitOrder[suitA] - suitOrder[suitB];
+                    });
                     Player.setPlayerHand(player.id, hand, (err5) => {
                       handsDone++;
                       // Emit the new hand to this player
@@ -230,8 +255,22 @@ exports.finishRound = (req, res) => {
                       if (handsDone === freshPlayers.length) {
                         // All hands dealt, respond success
                         db.query('UPDATE games SET rounds_completed = rounds_completed + 1 WHERE code = ?', [code], (err6) => {
-                          if (err6) return res.status(500).json({ error: err6.message });
-                          res.json({ success: true });
+                          if (err6) return callback && callback(err6);
+
+                          // --- EMIT SCORES UPDATED HERE ---
+                          Player.getPlayersByGameId(game.id, (err7, updatedPlayers) => {
+                            if (!err7 && updatedPlayers) {
+                              io.to(code).emit('scores-updated', {
+                                players: updatedPlayers.map(p => ({
+                                  id: p.id,
+                                  name: p.name,
+                                  gameScore: p.gameScore
+                                }))
+                              });
+                            }
+                            if (callback) callback(null);
+                          });
+                          // --- END EMIT ---
                         });
                       }
                     });
@@ -244,5 +283,13 @@ exports.finishRound = (req, res) => {
         });
       });
     });
+  });
+};
+
+// Keep your HTTP handler for compatibility
+exports.finishRound = (req, res) => {
+  exports.finishRoundInternal(req.params.code, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
   });
 };

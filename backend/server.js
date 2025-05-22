@@ -24,6 +24,8 @@ const Player = require('./models/playerModel');
 const db = require('./db');
 
 const currentTricks = {}; // { [gameCode]: [{ playerId, card }, ...] }
+const tricksPlayed = {}; // { [gameCode]: number }
+const { finishRoundInternal } = require('./controllers/gameController'); // adjust path if needed
 
 // Top (add helper)
 function generateShuffledDeck() {
@@ -156,14 +158,30 @@ io.on('connection', (socket) => {
       }
       const winnerId = winner.playerId;
 
-      // Broadcast trick-finished to all clients
-      io.to(gameCode).emit('trick-finished', {
-        winnerId,
-        trick
-      });
+      // --- UPDATE THE DATABASE HERE ---
+      if (!tricksPlayed[gameCode]) tricksPlayed[gameCode] = 0;
+      tricksPlayed[gameCode] += 1;
 
-      // Reset trick for this game
-      currentTricks[gameCode] = [];
+      Player.updateRoundScore(winnerId, 1, (err) => {
+        if (err) {
+          console.error('Failed to update round score for player', winnerId, err);
+        }
+        io.to(gameCode).emit('trick-finished', {
+          winnerId,
+          trick
+        });
+
+        // After 13 tricks, finish the round
+        if (tricksPlayed[gameCode] === 13) {
+          finishRoundInternal(gameCode, () => {
+            io.to(gameCode).emit('round-finished');
+            tricksPlayed[gameCode] = 0; // Reset for next round
+          });
+        }
+
+        // Reset trick for this game
+        currentTricks[gameCode] = [];
+      });
     }
   });
 
