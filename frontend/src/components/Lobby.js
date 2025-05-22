@@ -16,9 +16,13 @@ function Lobby() {
       setPlayers(playerList);
     });
 
-    socket.on('game-started', () => {
-      navigate('/game/play');
-    });
+    socket.on('game-started', ({ playerId: incomingId, hand }) => {
+        if (incomingId === playerId) {
+          localStorage.setItem('playerHand', JSON.stringify(hand));
+          navigate('/game/play');
+        }
+      });
+    
 
     return () => {
       socket.off('update-lobby');

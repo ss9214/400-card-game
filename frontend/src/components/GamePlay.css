@@ -1,0 +1,60 @@
+/* src/components/GamePlay.css */
+.gameplay-container { position: relative; width:100%; height:100%; }
+
+/* Top scoreboard */
+.scoreboard-top {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,255,255,0.9); border:1px solid #ccc;
+}
+.scoreboard-top table { border-collapse: collapse; }
+.scoreboard-top th,td { padding:4px 8px; }
+
+/* Round scoreboard */
+.scoreboard-round {
+  position: absolute; bottom: 16px; right: 16px;
+  background: rgba(255,255,255,0.9); border:1px solid #ccc;
+}
+.scoreboard-round table { border-collapse: collapse; }
+.scoreboard-round th,td { padding:4px 8px; }
+
+/* Bet modal already in Bet.css */
+
+/* Table center */
+.table-center {
+    position: absolute;
+    top: 250px;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Center horizontally and vertically */
+    width: 60%;
+    height: 400px;
+    position: relative;
+  }
+.table-card { position:absolute; text-align:center; }
+.table-card.bottom { bottom: 0; left:50%; transform:translateX(-50%); }
+.table-card.top    { top:    0; left:50%; transform:translateX(-50%); }
+.table-card.left   { left:   0; top: 50%; transform:translateY(-50%); }
+.table-card.right  { right:  0; top: 50%; transform:translateY(-50%); }
+.player-name { font-weight:bold; margin-top:4px; }
+
+/* Hand */
+.hand-container {
+  position: fixed; bottom: 0; left:50%;
+  transform: translateX(-50%);
+  display:flex; align-items:flex-end; padding:10px;
+  background: rgba(255,255,255,0.9); z-index:10;
+}
+.card-wrapper {
+  position: relative; margin-left: -70px;
+}
+.card-wrapper:first-child { margin-left:0; }
+.card-wrapper img {
+  height:160px; border-radius:6px; cursor:pointer;
+  transition: transform .2s ease;
+}
+.card-wrapper:hover img {
+  transform: translateY(-40px) scale(1.1);
+}
+.disabled-card img {
+  filter: brightness(80%);
+  cursor: not-allowed;
+}
