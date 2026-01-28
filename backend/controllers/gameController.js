@@ -1,16 +1,6 @@
 const Game = require('../models/gameModel');
 const Player = require('../models/playerModel');
 const { io } = require('../server');
-const db = require('../db');
-
-const dbQuery = (sql, params) => {
-  return new Promise((resolve, reject) => {
-    db.query(sql, params, (err, results) => {
-      if (err) reject(err);
-      else resolve(results);
-    });
-  });
-};
 
 function generateCode(length = 5) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -108,7 +98,7 @@ exports.getGameStatus = (req, res) => {
 };
 
 exports.getPlayerHand = (req, res) => {
-  const playerId = parseInt(req.params.playerId, 10);
+  const playerId = req.params.playerId;
   if (!playerId) return res.status(400).json({ error: 'Invalid player ID' });
 
   Player.getPlayerHand(playerId, (err, hand) => {
@@ -117,42 +107,48 @@ exports.getPlayerHand = (req, res) => {
   });
 };
 
-exports.placeBet = async (req, res) => {
-  try {
-    const { playerId, bet, gameCode } = req.body;  // Get gameCode from body instead of params
-    if (!gameCode) return res.status(400).json({ error: 'Game code is required' });
-    if (bet < 2) return res.status(400).json({ error: 'Minimum bet is 2' });
+exports.placeBet = (req, res) => {
+  (async () => {
+    try {
+      const { playerId, bet, gameCode } = req.body;
+      if (!gameCode) return res.status(400).json({ error: 'Game code is required' });
+      if (bet < 2) return res.status(400).json({ error: 'Minimum bet is 2' });
 
-    // First place the bet
-    await dbQuery(
-      'UPDATE players SET bet = ? WHERE id = ?',
-      [bet, playerId]
-    );
+      // Update player's bet in DynamoDB
+      Player.setBet(playerId, bet, async (err) => {
+        if (err) return res.status(500).json({ error: 'Failed to place bet' });
 
-    // Get all bets for this game
-    const [game] = await dbQuery(
-      'SELECT id FROM games WHERE code = ?',
-      [gameCode.toUpperCase()]
-    );
-    if (!game) return res.status(404).json({ error: 'Game not found' });
+        // Get game to find all players
+        Game.findGameByCode(gameCode, async (err, game) => {
+          if (err || !game) return res.status(404).json({ error: 'Game not found' });
 
-    const bets = await dbQuery(
-      'SELECT COUNT(*) as count FROM players WHERE game_id = ? AND bet IS NOT NULL',
-      [game.id]
-    );
+          // Get all players for this game to count bets
+          Player.getPlayersByGameId(game.id, (err2, players) => {
+            if (err2) return res.status(500).json({ error: err2.message });
 
-    // If this was the last bet, update phase to 'playing'
-    if (bets[0].count === 4) {
-      await dbQuery(
-        'UPDATE games SET phase = ? WHERE code = ?',
-        ['playing', gameCode.toUpperCase()]
-      );
+            // Count how many players have placed bets
+            const placedBets = players.filter(p => p.bet !== null).length;
+
+            // If all 4 players have bet, update game phase to 'playing'
+            if (placedBets === 4) {
+              const { docClient, GAMES_TABLE, UpdateCommand } = require('../db');
+              const updateParams = {
+                TableName: GAMES_TABLE,
+                Key: { code: gameCode.toUpperCase() },
+                UpdateExpression: 'SET phase = :phase',
+                ExpressionAttributeValues: { ':phase': 'playing' }
+              };
+              docClient.send(new UpdateCommand(updateParams)).catch(err => console.error('Error updating game phase:', err));
+            }
+
+            res.json({ success: true, playerId, bet });
+          });
+        });
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    res.json({ success: true, playerId, bet });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  })();
 };
 
 exports.getBets = (req, res) => {
@@ -179,6 +175,18 @@ exports.finishRoundInternal = (code, callback) => {
   code = code.toUpperCase();
   Game.findGameByCode(code, (err, game) => {
     if (err || !game) return callback && callback(err || new Error('Game not found'));
+    
+    // Update rounds_completed in DynamoDB
+    const { docClient, GAMES_TABLE, UpdateCommand } = require('../db');
+    const updateRoundsParams = {
+      TableName: GAMES_TABLE,
+      Key: { code: code },
+      UpdateExpression: 'SET rounds_completed = rounds_completed + :inc',
+      ExpressionAttributeValues: { ':inc': 1 }
+    };
+    docClient.send(new UpdateCommand(updateRoundsParams)).catch(err6 => {
+      if (err6) console.error('Error updating rounds_completed:', err6);
+    });
 
     Player.getPlayersByGameId(game.id, (err2, players) => {
       if (err2) return callback && callback(err2);
@@ -207,14 +215,50 @@ exports.finishRoundInternal = (code, callback) => {
               if (errs.length || e2) {
                 return callback && callback(errs.concat(e2));
               }
-              // Reset phase to betting for next round
-              db.query('UPDATE games SET phase = ? WHERE code = ?', ['betting', code], (err3) => {
+              // Rotate betting indices for next round using DynamoDB
+              const nextIdx = (game.trick_starter_idx + 1) % 4;
+              const updatePhaseParams = {
+                TableName: GAMES_TABLE,
+                Key: { code: code },
+                UpdateExpression: 'SET phase = :phase, current_bet_idx = :nextIdx, trick_starter_idx = :nextIdx',
+                ExpressionAttributeValues: { ':phase': 'betting', ':nextIdx': nextIdx }
+              };
+              docClient.send(new UpdateCommand(updatePhaseParams)).catch(err3 => {
                 if (err3) return callback && callback(err3);
+              });
 
-                // --- DEAL NEW HANDS ---
-                const deck = generateShuffledDeck();
-                // Re-fetch players to get their IDs in the right order
-                Player.getPlayersByGameId(game.id, (err4, freshPlayers) => {
+              // --- DEAL NEW HANDS ---
+              const deck = generateShuffledDeck();
+              // Re-fetch players to get their IDs in the right order
+              Player.getPlayersByGameId(game.id, (err4, freshPlayers) => {
+                // First check round isn't over
+                const team1 = [freshPlayers[0], freshPlayers[2]];
+                const team2 = [freshPlayers[1], freshPlayers[3]];
+                const team1Scores = [team1[0].gameScore, team1[1].gameScore];
+                const team2Scores = [team2[0].gameScore, team2[1].gameScore];
+                let team1win = false;
+                let team2win = false;
+                if (Math.max(...team1Scores) >= 41 && Math.min(...team1Scores) >= 0) {
+                  team1win = true;
+                }
+                if (Math.max(...team2Scores) >= 41 && Math.min(...team2Scores) >= 0) {
+                  team2win = true;
+                }
+                if (team1win && team2win) { // both teams reached win condition
+                  if (Math.max(...team1Scores) > Math.max(...team2Scores)) { // team1 score more than team2
+                    console.log({ team: "Team 1", player1: team1[0].name, player2: team1[1].name });
+                    io.to(code).emit('game-over', { team: "Team 1", player1: team1[0].name, player2: team1[1].name });
+                  } else { // team2 more than team1
+                    console.log({ team: "Team 2", player1: team2[0].name, player2: team2[1].name });
+                    io.to(code).emit('game-over', { team: "Team 2", player1: team2[0].name, player2: team2[1].name });
+                  }
+                } else if (team1win) { // only team1 won
+                  console.log({ team: "Team 1", player1: team1[0].name, player2: team1[1].name });
+                  io.to(code).emit('game-over', { team: "Team 1", player1: team1[0].name, player2: team1[1].name });
+                } else if (team2win) { // only team2 won
+                  console.log({ team: "Team 2", player1: team2[0].name, player2: team2[1].name });
+                  io.to(code).emit('game-over', { team: "Team 2", player1: team2[0].name, player2: team2[1].name });
+                } else { // no winners, continue
                   if (err4) return callback && callback(err4);
                   let handsDone = 0;
                   freshPlayers.forEach((player, i) => {
@@ -254,29 +298,25 @@ exports.finishRoundInternal = (code, callback) => {
                       io.to(player.id.toString()).emit('new-hand', { playerId: player.id, hand });
                       if (handsDone === freshPlayers.length) {
                         // All hands dealt, respond success
-                        db.query('UPDATE games SET rounds_completed = rounds_completed + 1 WHERE code = ?', [code], (err6) => {
-                          if (err6) return callback && callback(err6);
-
-                          // --- EMIT SCORES UPDATED HERE ---
-                          Player.getPlayersByGameId(game.id, (err7, updatedPlayers) => {
-                            if (!err7 && updatedPlayers) {
-                              io.to(code).emit('scores-updated', {
-                                players: updatedPlayers.map(p => ({
-                                  id: p.id,
-                                  name: p.name,
-                                  gameScore: p.gameScore
-                                }))
-                              });
-                            }
-                            if (callback) callback(null);
-                          });
-                          // --- END EMIT ---
+                        
+                        // --- EMIT SCORES UPDATED HERE ---
+                        Player.getPlayersByGameId(game.id, (err7, updatedPlayers) => {
+                          if (!err7 && updatedPlayers) {
+                            io.to(code).emit('scores-updated', {
+                              players: updatedPlayers.map(p => ({
+                                id: p.id,
+                                name: p.name,
+                                gameScore: p.gameScore
+                              }))
+                            });
+                          }
+                          if (callback) callback(null);
                         });
+                        // --- END EMIT ---
                       }
                     });
                   });
-                });
-                // --- END DEAL NEW HANDS ---
+                }
               });
             });
           }

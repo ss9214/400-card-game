@@ -11,9 +11,11 @@ function Home() {
       const res = await api.post('/games/create', { name });
       const { game, player } = res.data;
 
-      localStorage.setItem('gameCode', game.code);
-      localStorage.setItem('playerName', player.name);
-      localStorage.setItem('playerId', player.id);
+      sessionStorage.setItem('gameCode', game.code);
+      localStorage.setItem('gameCode', game.code); // Keep in localStorage for reload recovery
+      sessionStorage.setItem('playerName', player.name);
+      sessionStorage.setItem('playerId', player.id);
+      sessionStorage.setItem('isOwner', 'true');
 
       navigate('/game/lobby');
     } catch (err) {

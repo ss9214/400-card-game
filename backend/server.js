@@ -21,10 +21,10 @@ app.use('/api/games', gameRoutes);
 // SOCKET.IO
 const Game = require('./models/gameModel');
 const Player = require('./models/playerModel');
-const db = require('./db');
 
 const currentTricks = {}; // { [gameCode]: [{ playerId, card }, ...] }
 const tricksPlayed = {}; // { [gameCode]: number }
+const gamesSkippingRound = new Set(); // Track games currently skipping round
 const { finishRoundInternal } = require('./controllers/gameController'); // adjust path if needed
 
 // Top (add helper)
@@ -53,22 +53,43 @@ io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
   socket.on('join-lobby', async ({ gameCode, playerId }) => {
+    if (!playerId) {
+      console.error('Join-lobby called with null playerId');
+      return;
+    }
+    console.log(`Player ${playerId} joining lobby with code ${gameCode}`);
     socket.join(gameCode);
     socket.join(playerId.toString());
     socket.currentGameCode = gameCode;
-    const game = await new Promise(resolve => Game.findGameByCode(gameCode, (err, g) => resolve(g)));
-    if (!game) return;
+    const game = await new Promise(resolve => Game.findGameByCode(gameCode, (err, g) => {
+      console.log(`Found game:`, g);
+      resolve(g);
+    }));
+    if (!game) {
+      console.error('Game not found for code:', gameCode);
+      return;
+    }
 
+    console.log(`Looking up players for game.id: ${game.id}`);
     Player.getPlayersByGameId(game.id, (err, players) => {
-      if (!err) {
+      console.log(`Query result - err: ${err}, players:`, players);
+      if (!err && players) {
+        console.log(`Emitting ${players.length} players to room ${gameCode}`);
         io.to(gameCode).emit('update-lobby', players);
+      } else {
+        console.error('Error fetching players:', err);
       }
     });
   });
 
   socket.on('bet-placed', ({ playerId: pid, bet, nextIdx }) => {
     const room = socket.currentGameCode;
-    if (!room) return;
+    console.log(`[bet-placed] Player ${pid} bet ${bet}, nextIdx: ${nextIdx}, room: ${room}`);
+    if (!room) {
+      console.error('[bet-placed] No currentGameCode set');
+      return;
+    }
+    console.log(`[bet-placed] Broadcasting to room ${room}`);
     io.to(room).emit('bet-placed', { playerId: pid, bet, nextIdx });
   });
   
@@ -186,34 +207,88 @@ io.on('connection', (socket) => {
   });
 
   socket.on('skip-round', ({ gameCode }) => {
-    // 1. Increment rounds_completed
-    db.query('UPDATE games SET rounds_completed = rounds_completed + 1, phase = "betting" WHERE code = ?', [gameCode], (err) => {
-      if (err) {
+    // Prevent multiple skip-round actions from the same game concurrently
+    if (gamesSkippingRound.has(gameCode)) {
+      console.log(`Skip round already in progress for game ${gameCode}`);
+      return; // Exit if already skipping
+    }
+
+    gamesSkippingRound.add(gameCode); // Mark game as skipping
+    console.log(`Initiating skip round for game ${gameCode}`);
+
+    // 1. Get the game first to find how many players
+    Game.findGameByCode(gameCode, (err2, game) => {
+      if (err2 || !game) {
+        console.error('Error finding game for skip round:', err2);
+        gamesSkippingRound.delete(gameCode); // Clean up on error
         return;
       }
-      // 2. Get the game and players
-      Game.findGameByCode(gameCode, (err2, game) => {
-        if (err2 || !game) return;
-        Player.getPlayersByGameId(game.id, (err3, players) => {
-          if (err3) return;
+      Player.getPlayersByGameId(game.id, (err3, players) => {
+        if (err3) {
+          console.error('Error getting players for skip round:', err3);
+          gamesSkippingRound.delete(gameCode); // Clean up on error
+          return;
+        }
+
+        // 2. Update game state (rounds_completed, rotate betting indices)
+        const { UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+        const { docClient, GAMES_TABLE } = require('./db');
+        const nextIdx = (game.trick_starter_idx + 1) % 4;
+        const updateParams = {
+          TableName: GAMES_TABLE,
+          Key: { code: gameCode.toUpperCase() },
+          UpdateExpression: 'SET rounds_completed = rounds_completed + :inc, current_bet_idx = :nextIdx, trick_starter_idx = :nextIdx, phase = :betting',
+          ExpressionAttributeValues: {
+            ':inc': 1,
+            ':nextIdx': nextIdx,
+            ':betting': 'betting'
+          }
+        };
+        
+        docClient.send(new UpdateCommand(updateParams)).then(() => {
+          console.log("rounds completed went up and betting indices reset for game: " + gameCode);
+
           // 3. Shuffle and deal new hands
           const deck = generateShuffledDeck();
           players.forEach((player, i) => {
-            const hand = deck.slice(i * 13, (i + 1) * 13);
+            const suitOrder = {
+              clubs: 0,
+              diamonds: 1,
+              spades: 2,
+              hearts: 3
+            };
+            const rankOrder = {
+              2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 6, 9: 7,
+              10: 8, jack: 9, queen: 10, king: 11, ace: 12,
+            };
+            const hand = deck.slice(i * 13, (i + 1) * 13).sort((a, b) => {
+              const rankA = a.split('_of_')[0];
+              const rankB = b.split('_of_')[0];
+              return rankOrder[rankA] - rankOrder[rankB];
+            }).sort((a, b) => {
+              const suitA = a.split('_of_')[1];
+              const suitB = b.split('_of_')[1];
+              return suitOrder[suitA] - suitOrder[suitB];
+            });
             Player.setPlayerHand(player.id, hand, (err4) => {
+              if (err4) console.error(`Failed to save hand for player ${player.id}:`, err4);
               // Emit the new hand to this player
               io.to(player.id.toString()).emit('new-hand', { playerId: player.id, hand });
             });
           });
           // Emit round-skipped to the whole room
           io.to(gameCode).emit('round-skipped', { message: "Round skipped: total bets < 11. New hands have been dealt." });
+          gamesSkippingRound.delete(gameCode); // Remove game from skipping set after successful skip
+        }).catch(err => {
+          console.error('Error updating game for skip round:', err);
+          gamesSkippingRound.delete(gameCode); // Clean up on error
         });
       });
     });
   });
 });
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 5000;
 server.listen(port, () => console.log(`Server listening on port ${port}`));
 
 

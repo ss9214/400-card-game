@@ -1,33 +1,62 @@
 // frontend/src/components/GameFinished.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../api';
+import socket from '../socket';
 
 function GameFinished() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { winningTeam } = location.state || {}; // Get winningTeam from navigation state
+  const playerId = sessionStorage.getItem('playerId');
+  const players = JSON.parse(sessionStorage.getItem('players') || '[]')
+  const { winningTeam, winningPlayers } = location.state || {}; // Get winningTeam and winningPlayers from navigation state
+  const gameCode = sessionStorage.getItem('gameCode');
+  const isHost = players.length > 0 && players[0].id === playerId;
 
-  const handlePlayAgain = () => {
-    // Clear game-specific local storage
-    localStorage.removeItem('gameCode');
-    // localStorage.removeItem('playerId'); // Decide if you want to keep the same player ID or create a new one
-    // localStorage.removeItem('playerName'); // Decide if you want to keep the same name
-    // localStorage.removeItem('playerHand'); // Clear player hand
+  useEffect(() => {
+    socket.on('game-started', ({ playerId: incomingId, hand }) => {
+        if (incomingId === playerId) {
+          sessionStorage.setItem('playerHand', JSON.stringify(hand));
+          navigate('/game/play');
+        }
+      });
+    
 
-    // Navigate back to the home or lobby screen to start a new game
-    navigate('/'); // Navigate to home page
-    // Or navigate to the lobby or a game creation screen
+    return () => {
+      socket.off('game-started');
+    };
+  }, [gameCode, playerId, navigate]);
+
+  const handlePlayAgain = async () => {
+    try {
+      // Reset game state (phase, indices, rounds)
+      await api.post(`/games/${gameCode}/reset`);
+      // Reset all player scores to 0
+      for (const player of players) {
+        await api.post('/games/bet', { 
+          playerId: player.id, 
+          gameCode: gameCode,
+          resetScore: true 
+        }).catch(() => {}); // Ignore errors if endpoint doesn't support this
+      }
+      // Start the game
+      socket.emit('start-game', { gameCode });
+    } catch (err) {
+      console.error('Error resetting game:', err);
+    }
   };
 
-  // Determine the team number to display (assuming team1 is players 0 & 2, team2 is players 1 & 3)
-  const winningTeamNumber = winningTeam === 'team1' ? '1 & 3' : (winningTeam === 'team2' ? '2 & 4' : 'Unknown Team');
+  // Determine the team number to display (assuming team1 is players 0 & 2, team2 is players 1 & 3 based on backend sort)
+   // Note: This assumes the players array in GamePlay was sorted by ID.
+   // If you have specific player IDs for teams, you might need a mapping here.
+
 
   return (
     <div>
       <h1>Game Over!</h1>
-      {winningTeam && <p>{`Team ${winningTeamNumber} won!`}</p>}
-      {!winningTeam && <p>The game finished.</p>} {/* Handle case where winningTeam might not be set */}
-      <button onClick={handlePlayAgain}>Play Again</button>
+      {winningTeam && winningPlayers && <p>{`${winningTeam} with ${winningPlayers[0]} and ${winningPlayers[1]} won!`}</p>}
+      {!winningTeam && <p>The game finished.</p>}
+      {isHost && <button onClick={handlePlayAgain}>Play Again</button>}
     </div>
   );
 }

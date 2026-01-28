@@ -4,6 +4,7 @@ import api from '../api';
 import socket from '../socket';
 import BetModal from './Bet';
 import './GamePlay.css';
+import { useNavigate } from 'react-router-dom';
 
 export default function GamePlay() {
   // --- core state
@@ -17,9 +18,11 @@ export default function GamePlay() {
   const [bettingPhase, setBetting] = useState(false);
   const [currentBetIdx, setBetIdx] = useState(0);
   const [tricksWon, setTricksWon]    = useState({});
-  const gameCode = localStorage.getItem('gameCode');
-  const playerId = parseInt(localStorage.getItem('playerId'), 10);
+  const gameCode = sessionStorage.getItem('gameCode');
+  const playerId = sessionStorage.getItem('playerId');
   const [roundSkippedMsg, setRoundSkippedMsg] = useState('');
+
+  const navigate = useNavigate();
 
   const loadPlayersAndBets = async () => {
     const p = await api.get(`/games/${gameCode}/players`);
@@ -37,10 +40,11 @@ export default function GamePlay() {
     // Get current game state
     const gameState = await api.get(`/games/${gameCode}/state`);
     console.log(gameState);
-    const roundsCompleted = gameState.data.roundsCompleted || 0;
-    const starterIdx = roundsCompleted % 4;
+    const starterIdx = gameState.data.trickStarterIdx;
+    console.log("starterIdx: ")
     console.log(starterIdx);
     setBetIdx(starterIdx);
+    setTrickStarterIdx(starterIdx);
     
     // Only enter betting phase if the game is actually in betting phase
     if (gameState.data.phase === 'betting') {
@@ -70,13 +74,20 @@ export default function GamePlay() {
     const handleBetPlaced = ({ playerId: pid, bet, nextIdx }) => {
       setBets(prev => {
         const updatedBets = { ...prev, [pid]: bet };
-
+        if (updatedBets["undefined"]) {
+            delete updatedBets["undefined"];
+        }
+        console.log(updatedBets);
         // Check if all 4 players have placed their bets
         if (Object.keys(updatedBets).length === 4) {
           setBetting(false); // End betting phase on the frontend
           setBetIdx(0); // Reset bet index for the start of the next round (backend will handle the actual start player)
+          // Sync betting phase to backend
+          api.post(`/games/${gameCode}/state`, { current_bet_idx: 0 }).catch(err => console.error('Failed to update bet index:', err));
         } else {
           setBetIdx(nextIdx); // Move to the next bettor
+          // Sync current bet index to backend
+          api.post(`/games/${gameCode}/state`, { current_bet_idx: nextIdx }).catch(err => console.error('Failed to update bet index:', err));
         }
 
         return updatedBets;
@@ -95,13 +106,21 @@ export default function GamePlay() {
         && players.length > 0
         && Object.keys(bets).length === players.length) {
       const total = players.reduce((sum, p) => sum + (bets[p.id] || 0), 0);
-      if (total < 11) {
+      
+      // Calculate minimum total bet based on highest score
+      const maxScore = Math.max(...players.map(p => p.gameScore));
+      const minTotalBet = 11 + Math.floor(maxScore / 10);
+      
+      if (total < minTotalBet) {
         // clear bets and re-enter betting
         setBets({});
         setBetting(true);
-  
+        
         // ask the server to skip the round, increment rounds_completed, and deal new hands
         socket.emit('skip-round', { gameCode });
+      } else {
+        // Sync phase to 'playing' in backend
+        api.post(`/games/${gameCode}/state`, { phase: 'playing' }).catch(err => console.error('Failed to update phase:', err));
       }
     }
   }, [bettingPhase, bets, players, gameCode]);
@@ -130,11 +149,13 @@ export default function GamePlay() {
       setTrick([]);
       const winnerIdx = players.findIndex(p => p.id === winnerId);
       setTrickStarterIdx(winnerIdx);
+      // Sync trick_starter_idx to backend
+      api.post(`/games/${gameCode}/state`, { trick_starter_idx: winnerIdx }).catch(err => console.error('Failed to update trick starter:', err));
     };
 
     socket.on('trick-finished', handleTrickFinished);
     return () => socket.off('trick-finished', handleTrickFinished);
-  }, [players]);
+  }, [players, gameCode]);
 
   // submit a bet
   const submitBet = async val => {
@@ -187,12 +208,19 @@ export default function GamePlay() {
   }, []);
 
   useEffect(() => {
-    const handleRoundSkipped = ({ message }) => {
-      setRoundSkippedMsg(message);
-      setTimeout(() => setRoundSkippedMsg(''), 4000); // Hide after 4 seconds
-    };
-    socket.on('round-skipped', handleRoundSkipped);
-    return () => socket.off('round-skipped', handleRoundSkipped);
+        const handleRoundSkipped = ({ message }) => {
+        setTricksWon({});
+        setBets({});
+        setBetting(true);
+        setPlayed({});
+        setTrick([]);
+        loadPlayersAndBets();
+      
+        setRoundSkippedMsg(message);
+        setTimeout(() => setRoundSkippedMsg(''), 4000); // Hide after 4 seconds
+        };
+        socket.on('round-skipped', handleRoundSkipped);
+        return () => socket.off('round-skipped', handleRoundSkipped);
   }, []);
 
   useEffect(() => {
@@ -208,18 +236,49 @@ export default function GamePlay() {
     return () => socket.off('scores-updated', handleScoresUpdated);
   }, []);
 
+  // game over
+  useEffect(() => {
+    const handleGameOver = ({ team: winningTeam, player1: winningPlayer1, player2: winningPlayer2 }) => {
+        console.log("Game finished event received:", winningTeam);
+        // Reset relevant GamePlay state
+        setTricksWon({});
+        setBets({});
+        setBetting(false); // Ensure betting modal is hidden
+        setPlayed({});
+        setTrick([]);
+        setHand([]); // Clear the hand display
+
+        // Clear local storage items specific to THIS game instance's progression
+        localStorage.removeItem('playerHand'); // Clear the old hand
+
+        navigate('/game/finished', { state: { winningTeam: winningTeam, winningPlayers: [winningPlayer1, winningPlayer2] } });
+    }
+    socket.on('game-over', handleGameOver);
+    //
+    // clear game and data here, except maybe the names and room code so we can restart with same info like a start game button
+    //
+    return () => {
+        socket.off('game-over', handleGameOver);
+    }
+  }, [navigate]);
+
   useEffect(() => {
     const handleRoundFinished = () => {
       setTricksWon({});
       setBets({});
-      setBetting(true);
       setPlayed({});
       setTrick([]);
-      loadPlayersAndBets();
+      // Reset round data and wait for backend to finish clearing bets
+      setTimeout(() => {
+        loadPlayersAndBets().then(() => {
+          // Force betting phase after reset
+          setBetting(true);
+        });
+      }, 500);
     };
     socket.on('round-finished', handleRoundFinished);
     return () => socket.off('round-finished', handleRoundFinished);
-  }, []);
+  }, [gameCode]);
 
   return (
     <div>
@@ -235,7 +294,7 @@ export default function GamePlay() {
         {bettingPhase && playerId === players[currentBetIdx]?.id && (
             <BetModal
             player={players[currentBetIdx]}
-            minBet={2}
+            minBet={2 + Math.floor((players[currentBetIdx]?.gameScore || 0) / 10)}
             onSubmit={submitBet}
             />
         )}

@@ -23,4 +23,18 @@ router.get('/:code/state', (req, res) => {
   });
 });
 
+router.post('/:code/state', (req, res) => {
+  Game.updateGameState(req.params.code, req.body, (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(result);
+  });
+});
+
+router.post('/:code/reset', (req, res) => {
+  Game.resetGame(req.params.code, (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(result);
+  });
+});
+
 module.exports = router;

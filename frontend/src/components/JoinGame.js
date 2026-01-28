@@ -11,7 +11,7 @@ function JoinGame() {
 
   const handleJoin = async () => {
     try {
-      const existingPlayerId = localStorage.getItem('playerId');
+      const existingPlayerId = sessionStorage.getItem('playerId');
 
       const res = await api.post('/games/join', {
         name,
@@ -21,9 +21,11 @@ function JoinGame() {
 
       const { game, player } = res.data;
 
-      localStorage.setItem('gameCode', game.code);
-      localStorage.setItem('playerName', player.name);
-      localStorage.setItem('playerId', player.id);
+      sessionStorage.setItem('gameCode', game.code);
+      localStorage.setItem('gameCode', game.code); // Keep in localStorage for reload recovery
+      sessionStorage.setItem('playerName', player.name);
+      sessionStorage.setItem('playerId', player.id);
+      sessionStorage.removeItem('isOwner');
 
       navigate('/game/lobby');
     } catch (err) {

@@ -4,6 +4,7 @@ import Home from './components/Home';
 import JoinGame from './components/JoinGame';
 import Lobby from './components/Lobby';
 import GamePlay from './components/GamePlay';
+import GameFinished from './components/GameFinished';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/game/join" element={<JoinGame />} />
         <Route path="/game/lobby" element={<Lobby />} />
         <Route path="/game/play" element={<GamePlay />} />
+        <Route path="/game/finished" element={<GameFinished />} />
       </Routes>
     </Router>
   );
