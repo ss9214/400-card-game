@@ -5,10 +5,13 @@ import JoinGame from './components/JoinGame';
 import Lobby from './components/Lobby';
 import GamePlay from './components/GamePlay';
 import GameFinished from './components/GameFinished';
+import RulesButton from './components/RulesButton';
+import './App.css';
 
 function App() {
   return (
     <Router>
+      <RulesButton />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/game/join" element={<JoinGame />} />
