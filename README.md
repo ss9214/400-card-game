@@ -24,14 +24,14 @@
 - **Goal**: First team to reach 41+ points (with both players >= 0) wins
 
 #### Round Flow
-1. **Betting Phase**: Each player bets how many tricks they'll win (0-13)
+1. **Betting Phase**: Each player bets how many tricks they think they can win (0-13)
 2. **Playing Phase**: Play cards following suit when possible
 3. **Scoring**: Points awarded based on whether you met your bet
 
 #### Scoring Rules
-- **Met your bet**: +5 points + number of tricks won
-- **Failed your bet**: -5 points - (bet - tricks won)
-- **Minimum bet**: Increases as your score increases (2 + score/10)
+- **Met your bet**: + number of tricks bet
+- **Failed your bet**: - number of tricks bet
+- **Minimum bet**: Increases as your score increases (30 -> min bet 3, 40 -> min bet 4, etc)
 
 #### Card Ranking
 - **Trump (Hearts)**: Ace > King > Queen > Jack > 10 > ... > 2
