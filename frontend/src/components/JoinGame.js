@@ -86,5 +86,3 @@ function JoinGame() {
 }
 
 export default JoinGame;
-
-export default JoinGame;
