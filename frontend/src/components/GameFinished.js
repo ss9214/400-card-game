@@ -1,5 +1,5 @@
 // frontend/src/components/GameFinished.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import socket from '../socket';

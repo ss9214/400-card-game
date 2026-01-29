@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { fetchPlayerHand } from '../api';
 import api from '../api';
 import socket from '../socket';
@@ -24,7 +24,7 @@ export default function GamePlay() {
 
   const navigate = useNavigate();
 
-  const loadPlayersAndBets = async () => {
+  const loadPlayersAndBets = useCallback(async () => {
     const p = await api.get(`/games/${gameCode}/players`);
     p.data.sort((a, b) => a.id - b.id);
     setPlayers(p.data);
@@ -55,12 +55,12 @@ export default function GamePlay() {
     } else {
       setBetting(false);
     }
-  };
+  }, [gameCode]);
 
   // Initial load
   useEffect(() => {
     loadPlayersAndBets();
-  }, [gameCode]);
+  }, [gameCode, loadPlayersAndBets]);
 
   // load your hand
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function GamePlay() {
         };
         socket.on('round-skipped', handleRoundSkipped);
         return () => socket.off('round-skipped', handleRoundSkipped);
-  }, []);
+  }, [loadPlayersAndBets]);
 
   useEffect(() => {
     const handleScoresUpdated = ({ players: updatedPlayers }) => {
@@ -278,7 +278,7 @@ export default function GamePlay() {
     };
     socket.on('round-finished', handleRoundFinished);
     return () => socket.off('round-finished', handleRoundFinished);
-  }, [gameCode]);
+  }, [gameCode, loadPlayersAndBets]);
 
   return (
     <div>
