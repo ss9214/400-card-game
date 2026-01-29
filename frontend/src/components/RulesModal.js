@@ -32,9 +32,9 @@ function RulesModal({ isOpen, onClose }) {
         <div className="rules-section">
           <h3>Scoring Rules</h3>
           <ul>
-            <li><strong>Met your bet:</strong> +5 points + number of tricks won</li>
-            <li><strong>Failed your bet:</strong> -5 points - (bet - tricks won)</li>
-            <li><strong>Minimum bet:</strong> Increases with score (2 + floor(score/10))</li>
+            <li><strong>Met your bet:</strong> + Tricks bet</li>
+            <li><strong>Failed your bet:</strong> - Tricks bet</li>
+            <li><strong>Minimum bet:</strong> &lt;30 = min bet 2, 30-39 = min bet 3, 40-49 = min bet 4, etc.</li>
           </ul>
         </div>
 
