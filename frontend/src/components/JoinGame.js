@@ -13,30 +13,37 @@ function JoinGame() {
     try {
       const existingPlayerId = sessionStorage.getItem('playerId');
 
-      const res = await api.post('/games/join', {
+      const res = await api.post('/rooms/join', {
         name,
         code,
         playerId: existingPlayerId
       });
 
-      const { game, player } = res.data;
+      const { room, player } = res.data;
 
-      sessionStorage.setItem('gameCode', game.code);
-      localStorage.setItem('gameCode', game.code); // Keep in localStorage for reload recovery
+      sessionStorage.setItem('roomCode', room.code);
+      localStorage.setItem('roomCode', room.code);
       sessionStorage.setItem('playerName', player.name);
       sessionStorage.setItem('playerId', player.id);
-      sessionStorage.removeItem('isOwner');
+      sessionStorage.removeItem('isHost');
 
-      navigate('/game/lobby');
+      // Check if game has been selected
+      if (room.game_type) {
+        // Navigate directly to the game
+        navigate(`/room/${room.code}/${room.game_type}/lobby`);
+      } else {
+        // Navigate to room lobby to wait for game selection
+        navigate(`/room/${room.code}`);
+      }
     } catch (err) {
       console.error(err);
-      alert('Failed to join game');
+      alert('Failed to join room');
     }
   };
 
   return (
     <div>
-      <h1>Join Game</h1>
+      <h1>Join Room</h1>
       <label>
         Your Name:
         <input
@@ -47,11 +54,11 @@ function JoinGame() {
       </label>
       <br />
       <label>
-        Game Code:
+        Room Code:
         <input
           value={code}
           onChange={e => setCode(e.target.value.toUpperCase())}
-          placeholder="Enter game code"
+          placeholder="Enter room code"
         />
       </label>
       <br />

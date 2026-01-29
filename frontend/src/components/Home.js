@@ -8,37 +8,37 @@ function Home() {
 
   const handleCreate = async () => {
     try {
-      const res = await api.post('/games/create', { name });
-      const { game, player } = res.data;
+      const res = await api.post('/rooms/create', { playerName: name });
+      const { room, player } = res.data;
 
-      sessionStorage.setItem('gameCode', game.code);
-      localStorage.setItem('gameCode', game.code); // Keep in localStorage for reload recovery
+      sessionStorage.setItem('roomCode', room.code);
+      localStorage.setItem('roomCode', room.code); // Keep in localStorage for reload recovery
       sessionStorage.setItem('playerName', player.name);
       sessionStorage.setItem('playerId', player.id);
-      sessionStorage.setItem('isOwner', 'true');
+      sessionStorage.setItem('isHost', 'true');
 
-      navigate('/game/lobby');
+      navigate(`/room/${room.code}`);
     } catch (err) {
       console.error(err);
-      alert('Failed to create game');
+      alert('Failed to create room');
     }
   };
 
   const handleJoin = () => {
-    navigate('/game/join', { state: { name } });
+    navigate('/join', { state: { name } });
   };
 
   return (
     <div>
-      <h1>Welcome to 400</h1>
+      <h1>Welcome to Party Games</h1>
       <input
         placeholder="Enter your name"
         value={name}
         onChange={e => setName(e.target.value)}
       />
       <br />
-      <button disabled={!name} onClick={handleCreate}>Create Game</button>
-      <button disabled={!name} onClick={handleJoin}>Join Game</button>
+      <button disabled={!name} onClick={handleCreate}>Create Room</button>
+      <button disabled={!name} onClick={handleJoin}>Join Room</button>
     </div>
   );
 }

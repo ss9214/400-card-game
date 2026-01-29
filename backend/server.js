@@ -14,9 +14,11 @@ const io = new Server(server, {
 });
 module.exports.io = io;
 const gameRoutes = require('./routes/gameRoutes');
+const roomRoutes = require('./routes/roomRoutes');
 app.use(cors());
 app.use(express.json());
 app.use('/api/games', gameRoutes);
+app.use('/api/rooms', roomRoutes);
 
 // SOCKET.IO
 const Game = require('./models/gameModel');
@@ -51,6 +53,12 @@ function generateShuffledDeck() {
 
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
+
+  // Room lobby socket events
+  socket.on('select-game', ({ roomCode, gameType }) => {
+    console.log(`Game ${gameType} selected for room ${roomCode}`);
+    io.to(roomCode).emit('game-selected', { gameType });
+  });
 
   socket.on('join-lobby', async ({ gameCode, playerId }) => {
     if (!playerId) {

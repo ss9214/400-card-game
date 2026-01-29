@@ -2,6 +2,31 @@
 const { v4: uuidv4 } = require('uuid');
 const { docClient, PLAYERS_TABLE, GAMES_TABLE, GetCommand, PutCommand, UpdateCommand, QueryCommand } = require('../db');
 
+exports.createPlayer = (name, cb) => {
+  (async () => {
+    try {
+      const playerId = uuidv4();
+      const params = {
+        TableName: PLAYERS_TABLE,
+        Item: {
+          id: playerId,
+          name: name,
+          bet: null,
+          round_score: 0,
+          game_score: 0,
+          hand: [],
+          createdAt: new Date().toISOString()
+        }
+      };
+      await docClient.send(new PutCommand(params));
+      cb(null, { id: playerId, name });
+    } catch (err) {
+      console.error('[createPlayer] Error:', err);
+      cb(err);
+    }
+  })();
+};
+
 exports.addPlayerToGame = (name, gameId, cb) => {
   (async () => {
     try {

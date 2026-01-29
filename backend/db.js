@@ -14,11 +14,13 @@ const client = new DynamoDBClient({
 const docClient = DynamoDBDocumentClient.from(client);
 
 // Table names
+const ROOMS_TABLE = process.env.DYNAMODB_ROOMS_TABLE || 'rooms';
 const GAMES_TABLE = process.env.DYNAMODB_GAMES_TABLE || 'games';
 const PLAYERS_TABLE = process.env.DYNAMODB_PLAYERS_TABLE || 'players';
 
 module.exports = {
   docClient,
+  ROOMS_TABLE,
   GAMES_TABLE,
   PLAYERS_TABLE,
   GetCommand,
