@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
+import './JoinGame.css';
 
 function JoinGame() {
   const { state } = useLocation();
@@ -27,42 +28,63 @@ function JoinGame() {
       sessionStorage.setItem('playerId', player.id);
       sessionStorage.removeItem('isHost');
 
-      // Check if game has been selected
       if (room.game_type) {
-        // Navigate directly to the game
         navigate(`/room/${room.code}/${room.game_type}/lobby`);
       } else {
-        // Navigate to room lobby to wait for game selection
         navigate(`/room/${room.code}`);
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to join room');
+      alert('Failed to join room. Please check the code and try again.');
     }
   };
 
   return (
-    <div>
-      <h1>Join Room</h1>
-      <label>
-        Your Name:
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Enter your name"
-        />
-      </label>
-      <br />
-      <label>
-        Room Code:
-        <input
-          value={code}
-          onChange={e => setCode(e.target.value.toUpperCase())}
-          placeholder="Enter room code"
-        />
-      </label>
-      <br />
-      <button disabled={!name || !code} onClick={handleJoin}>Join</button>
+    <div className="join-container">
+      <div className="join-card">
+        <h1>👥 Join Room</h1>
+        <p className="subtitle">Enter the room code to join your friends</p>
+        
+        <div className="input-group">
+          <label htmlFor="name-input">Your Name</label>
+          <input
+            id="name-input"
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Enter your name"
+          />
+        </div>
+
+        <div className="input-group">
+          <label htmlFor="code-input">Room Code</label>
+          <input
+            id="code-input"
+            type="text"
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase())}
+            placeholder="Enter 5-character code"
+            maxLength={5}
+            onKeyPress={e => e.key === 'Enter' && name && code && handleJoin()}
+            className="code-input"
+          />
+        </div>
+
+        <button 
+          className="join-button" 
+          disabled={!name || !code} 
+          onClick={handleJoin}
+        >
+          Join Room
+        </button>
+
+        <button 
+          className="back-button" 
+          onClick={() => navigate('/')}
+        >
+          ← Back to Home
+        </button>
+      </div>
     </div>
   );
 }

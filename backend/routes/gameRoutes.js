@@ -3,6 +3,13 @@ const express = require('express');
 const router  = express.Router();
 const gameController    = require('../controllers/gameController');
 const Game = require('../models/gameModel');
+const gameRegistry = require('../games/registry');
+
+// Get all available games
+router.get('/available', (req, res) => {
+  const games = gameRegistry.getAllGames();
+  res.json(games);
+});
 
 router.post('/create',          gameController.createGame);
 router.post('/join',            gameController.joinGame);

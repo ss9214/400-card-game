@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
+import './Lobby.css';
 
 function Lobby() {
   const navigate = useNavigate();
@@ -71,20 +72,26 @@ function Lobby() {
 
   if (showRejoinPrompt) {
     return (
-      <div>
-        <h2>Rejoin Game</h2>
-        <p>You were in game {gameCode}. Enter your name to rejoin:</p>
-        <input
-          value={rejoinName}
-          onChange={(e) => setRejoinName(e.target.value)}
-          placeholder="Enter your name"
-        />
-        <button onClick={handleRejoin} disabled={!rejoinName}>
-          Rejoin Game
-        </button>
-        <button onClick={() => { sessionStorage.clear(); localStorage.removeItem('gameCode'); navigate('/'); }}>
-          Go Home
-        </button>
+      <div className="lobby-container">
+        <div className="lobby-card">
+          <h2>🔄 Rejoin Game</h2>
+          <p className="subtitle">You were in game <strong>{gameCode}</strong></p>
+          <p>Enter your name to rejoin:</p>
+          <div className="input-group">
+            <input
+              value={rejoinName}
+              onChange={(e) => setRejoinName(e.target.value)}
+              placeholder="Enter your name"
+              onKeyPress={(e) => e.key === 'Enter' && rejoinName && handleRejoin()}
+            />
+          </div>
+          <button className="primary-button" onClick={handleRejoin} disabled={!rejoinName}>
+            Rejoin Game
+          </button>
+          <button className="secondary-button" onClick={() => { sessionStorage.clear(); localStorage.removeItem('gameCode'); navigate('/'); }}>
+            Go Home
+          </button>
+        </div>
       </div>
     );
   }
@@ -98,23 +105,56 @@ function Lobby() {
   const displayPlayerName = currentPlayer?.name || playerName;
 
   return (
-    <div>
-      <h2>Game Lobby</h2>
-      <p><strong>Game Code:</strong> {gameCode}</p>
-      <p><strong>You:</strong> {displayPlayerName}</p>
+    <div className="lobby-container">
+      <div className="lobby-card">
+        <h2>🎮 Game Lobby</h2>
+        
+        <div className="game-code-display">
+          <span className="label">Game Code</span>
+          <span className="code">{gameCode}</span>
+        </div>
 
-      <h3>Players:</h3>
-      <ul>
-        {players.map(p => (
-          <li key={p.id}>{p.name}</li>
-        ))}
-      </ul>
+        <div className="current-player">
+          <span className="label">You:</span>
+          <span className="name">{displayPlayerName}</span>
+        </div>
 
-      {isOwner && players.length === 4 && (
-        <button onClick={handleStartGame}>Start Game</button>
-      )}
+        <div className="players-section">
+          <h3>Players ({players.length}/4)</h3>
+          <div className="players-grid">
+            {players.map((p, idx) => (
+              <div key={p.id} className="player-card">
+                <div className="player-avatar">{['🎭', '🎪', '🎨', '🎯'][idx]}</div>
+                <div className="player-name">{p.name}</div>
+              </div>
+            ))}
+            {[...Array(4 - players.length)].map((_, idx) => (
+              <div key={`empty-${idx}`} className="player-card empty">
+                <div className="player-avatar">⏳</div>
+                <div className="player-name">Waiting...</div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      {!isOwner && <p>Waiting for host to start the game...</p>}
+        {isOwner && players.length === 4 && (
+          <button className="start-button" onClick={handleStartGame}>
+            🚀 Start Game
+          </button>
+        )}
+
+        {isOwner && players.length < 4 && (
+          <div className="waiting-message">
+            Waiting for {4 - players.length} more player{4 - players.length !== 1 ? 's' : ''}...
+          </div>
+        )}
+
+        {!isOwner && (
+          <div className="waiting-message">
+            ⏳ Waiting for host to start the game...
+          </div>
+        )}
+      </div>
     </div>
   );
 }
