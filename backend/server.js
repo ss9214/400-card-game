@@ -59,6 +59,11 @@ io.on('connection', (socket) => {
     console.log(`Game ${gameType} selected for room ${roomCode}`);
     io.to(roomCode).emit('game-selected', { gameType });
   });
+  
+  socket.on('deselect-game', ({ roomCode }) => {
+    console.log(`Game deselected for room ${roomCode}`);
+    io.to(roomCode).emit('game-deselected');
+  });
 
   socket.on('join-lobby', async ({ gameCode, playerId }) => {
     if (!playerId) {
@@ -69,24 +74,36 @@ io.on('connection', (socket) => {
     socket.join(gameCode);
     socket.join(playerId.toString());
     socket.currentGameCode = gameCode;
-    const game = await new Promise(resolve => Game.findGameByCode(gameCode, (err, g) => {
-      console.log(`Found game:`, g);
-      resolve(g);
-    }));
-    if (!game) {
-      console.error('Game not found for code:', gameCode);
-      return;
-    }
-
-    console.log(`Looking up players for game.id: ${game.id}`);
-    Player.getPlayersByGameId(game.id, (err, players) => {
-      console.log(`Query result - err: ${err}, players:`, players);
-      if (!err && players) {
-        console.log(`Emitting ${players.length} players to room ${gameCode}`);
+    
+    // First check if this is a room (pre-game selection) or a game (post-selection)
+    const Room = require('./models/roomModel');
+    
+    // Try to get room players first
+    Room.getRoomPlayers(gameCode, (err, players) => {
+      if (!err && players && players.length > 0) {
+        console.log(`Emitting ${players.length} room players to ${gameCode}`);
         io.to(gameCode).emit('update-lobby', players);
-      } else {
-        console.error('Error fetching players:', err);
+        return;
       }
+      
+      // If no room players, try game players
+      Game.findGameByCode(gameCode, (err, g) => {
+        if (err || !g) {
+          console.error('Game not found for code:', gameCode);
+          return;
+        }
+
+        console.log(`Looking up players for game.id: ${g.id}`);
+        Player.getPlayersByGameId(g.id, (err2, gamePlayers) => {
+          console.log(`Query result - err: ${err2}, players:`, gamePlayers);
+          if (!err2 && gamePlayers) {
+            console.log(`Emitting ${gamePlayers.length} game players to room ${gameCode}`);
+            io.to(gameCode).emit('update-lobby', gamePlayers);
+          } else {
+            console.error('Error fetching players:', err2);
+          }
+        });
+      });
     });
   });
 

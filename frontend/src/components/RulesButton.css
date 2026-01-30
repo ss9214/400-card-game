@@ -1,0 +1,37 @@
+.rules-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+  transition: all 0.3s ease;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rules-button:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(245, 87, 108, 0.5);
+}
+
+.rules-button:active {
+  transform: translateY(-1px) scale(1.02);
+}
+
+@media (max-width: 768px) {
+  .rules-button {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    top: 15px;
+    right: 15px;
+  }
+}

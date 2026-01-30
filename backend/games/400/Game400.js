@@ -66,10 +66,22 @@ class Game400 extends CardGame {
   calculateScore(playerId, bet, tricksWon, playerScore) {
     let delta;
     
-    // Calculate multiplier based on bet size
-    if (bet >= 8) {
+    // Determine doubling/tripling thresholds based on current score
+    let doubleThreshold = 6;
+    let tripleThreshold = 8;
+    let quadrupleThreshold = 10;  
+    if (playerScore >= 30) {
+        doubleThreshold += (Math.floor(playerScore/10) - 2)
+        tripleThreshold += (Math.floor(playerScore/10) - 2)
+        quadrupleThreshold += (Math.floor(playerScore/10) - 2)
+    }
+    
+    // Calculate multiplier based on bet size and thresholds
+    if (bet >= quadrupleThreshold) {
+      delta = bet * 4;
+    } else if (bet >= tripleThreshold) {
       delta = bet * 3;
-    } else if (bet >= 6) {
+    } else if (bet >= doubleThreshold) {
       delta = bet * 2;
     } else {
       delta = bet;

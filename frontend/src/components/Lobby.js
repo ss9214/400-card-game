@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import socket from '../socket';
 import './Lobby.css';
 
 function Lobby() {
   const navigate = useNavigate();
-  const gameCode = sessionStorage.getItem('gameCode') || localStorage.getItem('gameCode');
+  const { code } = useParams(); // Get code from URL
+  const gameCode = code || sessionStorage.getItem('gameCode') || localStorage.getItem('gameCode');
   const playerId = sessionStorage.getItem('playerId');
   const playerName = sessionStorage.getItem('playerName');
   const isOwner = sessionStorage.getItem('isOwner') === 'true';
@@ -20,12 +21,20 @@ function Lobby() {
       return;
     }
 
+    console.log('Lobby: Joining with', { gameCode, playerId, playerName });
     socket.emit('join-lobby', { gameCode, playerId });
 
     socket.on('update-lobby', (playerList) => {
-      sessionStorage.setItem('players', JSON.stringify(playerList))
+      console.log('Received update-lobby:', playerList);
+      sessionStorage.setItem('players', JSON.stringify(playerList));
       setPlayers(playerList);
     });
+
+    // Request player list immediately
+    setTimeout(() => {
+      console.log('Requesting player list update');
+      socket.emit('join-lobby', { gameCode, playerId });
+    }, 500);
 
     socket.on('game-started', ({ playerId: incomingId, hand }) => {
         if (incomingId === playerId) {
@@ -40,6 +49,10 @@ function Lobby() {
       socket.off('game-started');
     };
   }, [gameCode, playerId, navigate]);
+  
+  // Ensure current player is always in the list if we have their info
+  const displayPlayers = players.length > 0 ? players : 
+    (playerId && playerName ? [{ id: playerId, name: playerName }] : []);
 
   const handleRejoin = async () => {
     try {
@@ -101,7 +114,7 @@ function Lobby() {
   };
 
   // Find current player from the players list using playerId
-  const currentPlayer = players.find(p => p.id === playerId);
+  const currentPlayer = displayPlayers.find(p => p.id === playerId);
   const displayPlayerName = currentPlayer?.name || playerName;
 
   return (
@@ -120,15 +133,15 @@ function Lobby() {
         </div>
 
         <div className="players-section">
-          <h3>Players ({players.length}/4)</h3>
+          <h3>Players ({displayPlayers.length}/4)</h3>
           <div className="players-grid">
-            {players.map((p, idx) => (
+            {displayPlayers.map((p, idx) => (
               <div key={p.id} className="player-card">
                 <div className="player-avatar">{['🎭', '🎪', '🎨', '🎯'][idx]}</div>
                 <div className="player-name">{p.name}</div>
               </div>
             ))}
-            {[...Array(4 - players.length)].map((_, idx) => (
+            {[...Array(4 - displayPlayers.length)].map((_, idx) => (
               <div key={`empty-${idx}`} className="player-card empty">
                 <div className="player-avatar">⏳</div>
                 <div className="player-name">Waiting...</div>
@@ -137,15 +150,15 @@ function Lobby() {
           </div>
         </div>
 
-        {isOwner && players.length === 4 && (
+        {isOwner && displayPlayers.length === 4 && (
           <button className="start-button" onClick={handleStartGame}>
             🚀 Start Game
           </button>
         )}
 
-        {isOwner && players.length < 4 && (
+        {isOwner && displayPlayers.length < 4 && (
           <div className="waiting-message">
-            Waiting for {4 - players.length} more player{4 - players.length !== 1 ? 's' : ''}...
+            Waiting for {4 - displayPlayers.length} more player{4 - displayPlayers.length !== 1 ? 's' : ''}...
           </div>
         )}
 

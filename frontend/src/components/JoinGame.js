@@ -13,11 +13,15 @@ function JoinGame() {
   const handleJoin = async () => {
     try {
       const existingPlayerId = sessionStorage.getItem('playerId');
+      const existingPlayerName = sessionStorage.getItem('playerName');
+      
+      // Only send playerId if the name matches (user is rejoining as same player)
+      const shouldReusePlayer = existingPlayerId && existingPlayerName === name;
 
       const res = await api.post('/rooms/join', {
         name,
         code,
-        playerId: existingPlayerId
+        playerId: shouldReusePlayer ? existingPlayerId : null
       });
 
       const { room, player } = res.data;

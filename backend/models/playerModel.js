@@ -245,3 +245,24 @@ exports.updateGameScore = (id, delta, cb) => {
     }
   })();
 };
+
+exports.updatePlayerGame = (playerId, gameId, cb) => {
+  (async () => {
+    try {
+      const params = {
+        TableName: PLAYERS_TABLE,
+        Key: {
+          id: playerId
+        },
+        UpdateExpression: 'SET game_id = :gameId',
+        ExpressionAttributeValues: {
+          ':gameId': gameId
+        }
+      };
+      await docClient.send(new UpdateCommand(params));
+      cb(null);
+    } catch (err) {
+      cb(err);
+    }
+  })();
+};

@@ -41,6 +41,137 @@
   text-align: center;
 }
 
+.players-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+}
+
+.players-section h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.players-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.player-chip {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.player-emoji {
+  font-size: 1.2rem;
+}
+
+.host-badge {
+  font-size: 1rem;
+  margin-left: 2px;
+}
+
+.selected-game-section {
+  margin-bottom: 30px;
+}
+
+.selected-game-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 30px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.game-icon-large {
+  font-size: 4rem;
+  flex-shrink: 0;
+}
+
+.selected-game-info {
+  flex: 1;
+}
+
+.selected-game-info h2 {
+  margin: 0 0 10px 0;
+  color: white;
+  text-align: left;
+}
+
+.selected-game-info p {
+  margin: 5px 0;
+  opacity: 0.95;
+}
+
+.player-requirement {
+  font-weight: 600;
+  margin-top: 10px !important;
+}
+
+.change-game-button {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.change-game-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+}
+
+.start-game-button {
+  width: 100%;
+  padding: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #48c774 0%, #3a9e5d 100%);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 6px 20px rgba(72, 199, 116, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.start-game-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(72, 199, 116, 0.5);
+}
+
+.waiting-message {
+  text-align: center;
+  color: #7f8c8d;
+  font-size: 1.1rem;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
 .games-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -60,10 +191,19 @@
   gap: 12px;
 }
 
-.game-card:hover {
+.game-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-card:hover:not(.disabled) {
   transform: translateY(-5px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   border-color: #667eea;
+}
+
+.game-card.disabled:hover {
+  transform: none;
 }
 
 .game-icon {

@@ -11,6 +11,7 @@ exports.createRoom = (code, hostPlayerId, callback) => {
           code: code,
           id: roomId,
           host_player_id: hostPlayerId,
+          player_ids: [hostPlayerId], // Track all players in room
           game_type: null, // No game selected yet
           status: 'waiting',
           created_at: new Date().toISOString()
@@ -58,6 +59,63 @@ exports.updateRoomGameType = (code, gameType, callback) => {
       };
       await docClient.send(new UpdateCommand(params));
       callback(null, { success: true });
+    } catch (err) {
+      callback(err);
+    }
+  })();
+};
+
+exports.addPlayerToRoom = (code, playerId, callback) => {
+  (async () => {
+    try {
+      const params = {
+        TableName: ROOMS_TABLE,
+        Key: { code: code.toUpperCase() },
+        UpdateExpression: 'ADD player_ids :playerId',
+        ExpressionAttributeValues: {
+          ':playerId': docClient.createSet([playerId])
+        }
+      };
+      await docClient.send(new UpdateCommand(params));
+      callback(null, { success: true });
+    } catch (err) {
+      callback(err);
+    }
+  })();
+};
+
+exports.getRoomPlayers = (code, callback) => {
+  (async () => {
+    try {
+      const room = await new Promise((resolve, reject) => {
+        exports.findRoomByCode(code, (err, r) => {
+          if (err) reject(err);
+          else resolve(r);
+        });
+      });
+      
+      if (!room || !room.player_ids) {
+        return callback(null, []);
+      }
+      
+      // Convert Set to Array if needed
+      const playerIds = Array.isArray(room.player_ids) 
+        ? room.player_ids 
+        : Array.from(room.player_ids.values || room.player_ids);
+      
+      const Player = require('./playerModel');
+      const players = [];
+      
+      for (const playerId of playerIds) {
+        const player = await new Promise((resolve) => {
+          Player.findPlayerById(playerId, (err, p) => {
+            resolve(err ? null : p);
+          });
+        });
+        if (player) players.push(player);
+      }
+      
+      callback(null, players);
     } catch (err) {
       callback(err);
     }
