@@ -10,6 +10,8 @@ const server = http.createServer(app);
 const allowedOrigins = [
   'http://localhost:3000',
   'https://party-games.vercel.app',
+  'https://sri-party-games.vercel.app',
+  'https://party-games-dev.vercel.app'
 ];
 
 const io = new Server(server, {
