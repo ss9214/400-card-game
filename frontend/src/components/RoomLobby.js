@@ -46,7 +46,6 @@ function RoomLobby() {
       socket.off('game-selected');
       socket.off('game-deselected');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, playerId]);
 
   // Separate effect for game selection listeners that needs availableGames
@@ -92,7 +91,7 @@ function RoomLobby() {
       socket.off('game-deselected');
       socket.off('game-started');
     };
-  }, [availableGames, code, navigate]);
+  }, [availableGames]);
 
   const loadAvailableGames = async () => {
     try {
