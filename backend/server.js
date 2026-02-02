@@ -15,9 +15,16 @@ const io = new Server(server, {
 });
 module.exports.io = io;
 const gameRoutes = require('./routes/gameRoutes');
+const roomRoutes = require('./routes/roomRoutes');
+const playerRoutes = require('./routes/playerRoutes');
+const gameActionRoutes = require('./routes/gameActionRoutes');
+
 app.use(cors());
 app.use(express.json());
 app.use('/api/games', gameRoutes);
+app.use('/api/rooms', roomRoutes);
+app.use('/api/players', playerRoutes);
+app.use('/api/game-actions', gameActionRoutes);
 
 // SOCKET.IO
 const Game = require('./models/gameModel');
