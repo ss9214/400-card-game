@@ -13,7 +13,7 @@ import RulesButton from './components/RulesButton';
 function AppContent() {
   const location = useLocation();
   // Extract game type from URL path
-  const pathMatch = location.pathname.match(/\/room\/[^/]+\/(\w+)\/(lobby|play|finished)/);
+  const pathMatch = location.pathname.match(/\/room\/[^\/]+\/(\w+)\/(lobby|play|finished)/);
   const gameType = pathMatch ? pathMatch[1] : '400';
 
   return (
