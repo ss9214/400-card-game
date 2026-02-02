@@ -6,21 +6,27 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://party-games.vercel.app',
+];
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 module.exports.io = io;
 const gameRoutes = require('./routes/gameRoutes');
-const roomRoutes = require('./routes/roomRoutes');
-const gameActionRoutes = require('./routes/gameActionRoutes');
-app.use(cors());
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 app.use('/api/games', gameRoutes);
-app.use('/api/rooms', roomRoutes);
-app.use('/api/games', gameActionRoutes);
 
 // SOCKET.IO
 const Game = require('./models/gameModel');
@@ -56,22 +62,6 @@ function generateShuffledDeck() {
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
-  // Room lobby socket events
-  socket.on('select-game', ({ roomCode, gameType }) => {
-    console.log(`Game ${gameType} selected for room ${roomCode}`);
-    io.to(roomCode).emit('game-selected', { gameType });
-  });
-  
-  socket.on('deselect-game', ({ roomCode }) => {
-    console.log(`Game deselected for room ${roomCode}`);
-    io.to(roomCode).emit('game-deselected');
-  });
-
-  socket.on('game-started', ({ roomCode, gameType }) => {
-    console.log(`Game ${gameType} started for room ${roomCode}`);
-    io.to(roomCode).emit('game-started', { gameType });
-  });
-
   socket.on('join-lobby', async ({ gameCode, playerId }) => {
     if (!playerId) {
       console.error('Join-lobby called with null playerId');
@@ -81,36 +71,24 @@ io.on('connection', (socket) => {
     socket.join(gameCode);
     socket.join(playerId.toString());
     socket.currentGameCode = gameCode;
-    
-    // First check if this is a room (pre-game selection) or a game (post-selection)
-    const Room = require('./models/roomModel');
-    
-    // Try to get room players first
-    Room.getRoomPlayers(gameCode, (err, players) => {
-      if (!err && players && players.length > 0) {
-        console.log(`Emitting ${players.length} room players to ${gameCode}`);
-        io.to(gameCode).emit('update-lobby', players);
-        return;
-      }
-      
-      // If no room players, try game players
-      Game.findGameByCode(gameCode, (err, g) => {
-        if (err || !g) {
-          console.error('Game not found for code:', gameCode);
-          return;
-        }
+    const game = await new Promise(resolve => Game.findGameByCode(gameCode, (err, g) => {
+      console.log(`Found game:`, g);
+      resolve(g);
+    }));
+    if (!game) {
+      console.error('Game not found for code:', gameCode);
+      return;
+    }
 
-        console.log(`Looking up players for game.id: ${g.id}`);
-        Player.getPlayersByGameId(g.id, (err2, gamePlayers) => {
-          console.log(`Query result - err: ${err2}, players:`, gamePlayers);
-          if (!err2 && gamePlayers) {
-            console.log(`Emitting ${gamePlayers.length} game players to room ${gameCode}`);
-            io.to(gameCode).emit('update-lobby', gamePlayers);
-          } else {
-            console.error('Error fetching players:', err2);
-          }
-        });
-      });
+    console.log(`Looking up players for game.id: ${game.id}`);
+    Player.getPlayersByGameId(game.id, (err, players) => {
+      console.log(`Query result - err: ${err}, players:`, players);
+      if (!err && players) {
+        console.log(`Emitting ${players.length} players to room ${gameCode}`);
+        io.to(gameCode).emit('update-lobby', players);
+      } else {
+        console.error('Error fetching players:', err);
+      }
     });
   });
 
@@ -317,29 +295,6 @@ io.on('connection', (socket) => {
         });
       });
     });
-  });
-
-  // Imposter game socket events
-  socket.on('imposter-action', async ({ roomCode, action, data }) => {
-    console.log(`Imposter action: ${action} for room ${roomCode}`);
-    
-    // Broadcast action to all players in the room
-    io.to(roomCode).emit('imposter-action', { action, data });
-    
-    // Specific event handling
-    if (action === 'imposter-revealed') {
-      io.to(roomCode).emit('imposter-revealed', data);
-    } else if (action === 'game-finished') {
-      io.to(roomCode).emit('game-finished', data);
-    } else if (action === 'guess-submitted') {
-      io.to(roomCode).emit('guess-submitted', data);
-    }
-  });
-
-  // Back to lobby event - owner sends all players back
-  socket.on('back-to-lobby', ({ roomCode }) => {
-    console.log(`Back to lobby for room ${roomCode}`);
-    io.to(roomCode).emit('back-to-lobby');
   });
 });
 
