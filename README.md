@@ -2,7 +2,7 @@
 
 A Jackbox-style multiplayer card game platform supporting multiple card games. Currently features the 400 Card Game with plans to add Spades and other games.
 
-🌐 **Live Site**: [https://400-card-game.vercel.app/](https://400-card-game.vercel.app/)
+🌐 **Live Site**: [https://sri-party-games.vercel.app/](https://sri-party-games.vercel.app)
 
 ## Architecture
 
