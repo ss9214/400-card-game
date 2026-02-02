@@ -1,0 +1,491 @@
+.imposter-play {
+  max-width: 576px;
+  margin: 16px auto 12px auto;
+  padding: 12px;
+}
+
+.imposter-play h1 {
+  color: white;
+  text-align: center;
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+}
+
+.room-code {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.loading-state {
+  text-align: center;
+  color: white;
+  font-size: 1rem;
+  padding: 38px 12px;
+}
+
+/* Active Phase */
+.active-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.word-display {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.word-display h2 {
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.word-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 1.6rem;
+  font-weight: bold;
+  padding: 19px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.3);
+}
+
+.instructions {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.75rem;
+}
+
+.players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.player-card {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 0.7rem;
+}
+
+.finish-btn, .back-btn, .back-lobby-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 6px;
+}
+
+.back-lobby-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.finish-btn:hover:not(:disabled),
+.back-btn:hover,
+.back-lobby-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.back-lobby-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.finish-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waiting-text {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  font-size: 1.1rem;
+  font-style: italic;
+}
+
+/* Guessing Phase */
+.guessing-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.imposter-revealed {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.imposter-revealed h2 {
+  color: white;
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+.imposter-name {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+  font-size: 1.6rem;
+  font-weight: bold;
+  padding: 13px;
+  border-radius: 8px;
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.3);
+}
+
+.guess-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.guess-section h3 {
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.guess-section p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.75rem;
+  margin-bottom: 12px;
+}
+
+.guess-input {
+  width: 80%;
+  max-width: 256px;
+  padding: 10px;
+  font-size: 0.8rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-radius: 5px;
+  margin-bottom: 12px;
+}
+
+.guess-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.submit-guess-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 26px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-guess-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.3);
+}
+
+.submit-guess-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.guess-submitted,
+.waiting-imposter {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.guess-submitted p,
+.waiting-imposter p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  margin: 6px 0;
+}
+
+.determine-winner-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.determine-winner-section h3 {
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.winner-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.caught-btn {
+  flex: 1;
+  max-width: 160px;
+  padding: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.caught-btn.yes {
+  background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+}
+
+.caught-btn.no {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.caught-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.caught-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Finished Phase */
+.finished-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.finished-phase h2 {
+  color: white;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.results-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.result-item {
+  color: white;
+  font-size: 0.75rem;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.result-item:last-child {
+  border-bottom: none;
+}
+
+.result-item strong {
+  margin-right: 6px;
+}
+
+.winner-banner {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+}
+
+.winner-banner.imposters {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.winner-banner.normal {
+  background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .imposter-play {
+    max-width: 100%;
+    margin: 10px auto;
+    padding: 10px;
+  }
+
+  .imposter-play h1 {
+    font-size: 1.4rem;
+    margin-bottom: 5px;
+  }
+
+  .room-code {
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+
+  .loading-state {
+    font-size: 1rem;
+    padding: 30px 10px;
+  }
+
+  .active-phase,
+  .guessing-phase,
+  .finished-phase {
+    gap: 12px;
+  }
+
+  .word-display {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .word-display h2 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+
+  .word-card {
+    font-size: 1.4rem;
+    padding: 15px;
+    margin-bottom: 10px;
+  }
+
+  .instructions {
+    font-size: 0.75rem;
+  }
+
+  .players-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+  }
+
+  .player-card {
+    padding: 8px;
+    font-size: 0.75rem;
+  }
+
+  .finish-btn, .back-btn, .back-lobby-btn {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    margin-top: 5px;
+  }
+
+  .waiting-text {
+    font-size: 0.9rem;
+  }
+
+  .imposter-revealed {
+    padding: 12px;
+  }
+
+  .imposter-revealed h2 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+  }
+
+  .imposter-name {
+    font-size: 1.4rem;
+    padding: 12px;
+  }
+
+  .guess-section {
+    padding: 12px;
+  }
+
+  .guess-section h3 {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .guess-section p {
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+  }
+
+  .guess-input {
+    width: 90%;
+    max-width: 100%;
+    padding: 10px;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+
+  .submit-guess-btn {
+    padding: 10px 24px;
+    font-size: 0.9rem;
+  }
+
+  .guess-submitted,
+  .waiting-imposter {
+    padding: 12px;
+  }
+
+  .guess-submitted p,
+  .waiting-imposter p {
+    font-size: 0.85rem;
+    margin: 6px 0;
+  }
+
+  .determine-winner-section {
+    padding: 12px;
+  }
+
+  .determine-winner-section h3 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+
+  .winner-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .caught-btn {
+    max-width: 100%;
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+
+  .finished-phase {
+    gap: 12px;
+  }
+
+  .finished-phase h2 {
+    font-size: 1.2rem;
+  }
+
+  .results-card {
+    padding: 12px;
+  }
+
+  .result-item {
+    font-size: 0.8rem;
+    padding: 8px;
+  }
+
+  .result-item strong {
+    margin-right: 5px;
+  }
+
+  .winner-banner {
+    padding: 12px;
+    font-size: 1.1rem;
+  }
+}

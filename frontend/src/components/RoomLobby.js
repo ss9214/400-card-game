@@ -13,10 +13,24 @@ function RoomLobby() {
   const [availableGames, setAvailableGames] = useState([]);
   const [players, setPlayers] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
+  const [gameOptions, setGameOptions] = useState({});
+  const [copied, setCopied] = useState(false);
   const playerId = sessionStorage.getItem('playerId');
   const playerName = sessionStorage.getItem('playerName');
 
   useEffect(() => {
+    // Load initial player list if available
+    const initialPlayersStr = sessionStorage.getItem('initialPlayers');
+    if (initialPlayersStr) {
+      try {
+        const initialPlayers = JSON.parse(initialPlayersStr);
+        setPlayers(initialPlayers);
+        sessionStorage.removeItem('initialPlayers'); // Clear after using
+      } catch (e) {
+        console.error('Failed to parse initial players:', e);
+      }
+    }
+    
     loadRoomData();
     loadAvailableGames();
     
@@ -26,19 +40,6 @@ function RoomLobby() {
       console.log('RoomLobby received update-lobby:', playerList);
       setPlayers(playerList);
     });
-    
-    socket.on('game-selected', ({ gameType }) => {
-      console.log('Game selected:', gameType);
-      const game = availableGames.find(g => g.id === gameType);
-      setSelectedGame(game);
-      setRoom(prev => ({ ...prev, game_type: gameType }));
-    });
-    
-    socket.on('game-deselected', () => {
-      console.log('Game deselected');
-      setSelectedGame(null);
-      setRoom(prev => ({ ...prev, game_type: null }));
-    });
 
     return () => {
       socket.off('update-lobby');
@@ -46,6 +47,51 @@ function RoomLobby() {
       socket.off('game-deselected');
     };
   }, [code, playerId]);
+
+  // Separate effect for game selection listeners that needs availableGames
+  useEffect(() => {
+    if (availableGames.length === 0) return;
+    
+    socket.on('game-selected', ({ gameType }) => {
+      console.log('Game selected:', gameType);
+      const game = availableGames.find(g => g.id === gameType);
+      if (game) {
+        setSelectedGame(game);
+        setRoom(prev => ({ ...prev, game_type: gameType }));
+        
+        // Initialize default options for the game
+        if (game.options) {
+          const defaults = {};
+          game.options.forEach(opt => {
+            defaults[opt.id] = opt.defaultValue;
+          });
+          setGameOptions(defaults);
+        }
+      }
+    });
+    
+    socket.on('game-deselected', () => {
+      console.log('Game deselected');
+      setSelectedGame(null);
+      setGameOptions({});
+      setRoom(prev => ({ ...prev, game_type: null }));
+    });
+
+    socket.on('game-started', ({ gameType }) => {
+      console.log('Game started, navigating to:', gameType);
+      if (gameType === 'imposter') {
+        navigate(`/room/${code}/imposter/play`);
+      } else {
+        navigate(`/room/${code}/${gameType}/lobby`);
+      }
+    });
+
+    return () => {
+      socket.off('game-selected');
+      socket.off('game-deselected');
+      socket.off('game-started');
+    };
+  }, [availableGames]);
 
   const loadAvailableGames = async () => {
     try {
@@ -63,9 +109,19 @@ function RoomLobby() {
       setIsHost(roomRes.data.host_player_id === playerId);
       
       // Load selected game if any
-      if (roomRes.data.game_type) {
+      if (roomRes.data.game_type && availableGames.length > 0) {
         const game = availableGames.find(g => g.id === roomRes.data.game_type);
-        setSelectedGame(game);
+        if (game) {
+          setSelectedGame(game);
+          // Initialize default options
+          if (game.options) {
+            const defaults = {};
+            game.options.forEach(opt => {
+              defaults[opt.id] = opt.defaultValue;
+            });
+            setGameOptions(defaults);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load room:', err);
@@ -99,9 +155,23 @@ function RoomLobby() {
       await api.post(`/rooms/${code}/deselect-game`);
       socket.emit('deselect-game', { roomCode: code });
       setSelectedGame(null);
+      setGameOptions({});
     } catch (err) {
       console.error('Failed to deselect game:', err);
     }
+  };
+
+  const handleOptionChange = (optionId, value) => {
+    setGameOptions(prev => ({
+      ...prev,
+      [optionId]: value
+    }));
+  };
+
+  const copyRoomCode = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const canSelectGame = (game) => {
@@ -115,8 +185,36 @@ function RoomLobby() {
   const startGame = async () => {
     if (!isHost || !selectedGame) return;
     
-    // Navigate to game lobby
-    navigate(`/room/${code}/${selectedGame.id}/lobby`);
+    try {
+      // Call backend to create the game and associate players
+      const res = await api.post(`/rooms/${code}/start-game`);
+      const { gameType } = res.data;
+      
+      // For Imposter game, set difficulty and start round before navigating
+      if (gameType === 'imposter') {
+        // Start the round with difficulty
+        const difficulty = gameOptions.difficulty || 'medium';
+        console.log('Starting Imposter round with difficulty:', difficulty);
+        const roundResult = await api.post(`/games/${code}/action`, {
+          playerId: sessionStorage.getItem('playerId'),
+          action: 'start-round',
+          data: { difficulty }
+        });
+        console.log('Round started result:', roundResult.data);
+
+        // Navigate directly to play screen
+        navigate(`/room/${code}/imposter/play`);
+        
+        // Broadcast to other players to navigate
+        socket.emit('game-started', { roomCode: code, gameType });
+      } else {
+        // For other games, navigate to their lobby
+        navigate(`/room/${code}/${gameType}/lobby`);
+      }
+    } catch (err) {
+      console.error('Failed to start game:', err);
+      alert('Failed to start game. Please try again.');
+    }
   };
 
   const getGameIcon = (category) => {
@@ -133,10 +231,24 @@ function RoomLobby() {
     (playerId && playerName ? [{ id: playerId, name: playerName }] : []);
 
   return (
-    <div className="room-lobby-container">
-      <RulesButton gameType={selectedGame?.id || '400'} />
-      <div className="room-lobby-card">
-        <h1>🎮 Room: {code}</h1>
+    <>
+      {/* Full-Width Header at Top of Page */}
+      <div className="lobby-page-header">
+        <RulesButton gameType={selectedGame?.id || 'room-lobby'} />
+        <div className="player-name-display">
+          {playerName}
+        </div>
+        <div className="header-spacer"></div>
+      </div>
+
+      <div className="room-lobby-container">
+        <div className="room-lobby-card">
+        <div className="room-header">
+          <h1>🎮 Room: {code}</h1>
+          <button className="copy-code-button" onClick={copyRoomCode}>
+            {copied ? '✓ Copied!' : '📋 Copy Code'}
+          </button>
+        </div>
         
         {/* Player List Section */}
         <div className="players-section">
@@ -173,7 +285,41 @@ function RoomLobby() {
                 </button>
               )}
             </div>
-            
+          </div>
+        )}
+
+        {/* Game Options Section */}
+        {selectedGame && selectedGame.options && selectedGame.options.length > 0 && (
+          <div className="game-options-section">
+            <h3>Game Options</h3>
+            <div className="options-container">
+              {selectedGame.options.map(option => (
+                <div key={option.id} className="option-group">
+                  <label className="option-label"><u> {option.name} </u></label>
+                  {option.type === 'select' && (
+                    <div className="option-choices">
+                      {option.choices.map(choice => (
+                        <button
+                          key={choice.value}
+                          className={`option-choice ${gameOptions[option.id] === choice.value ? 'selected' : ''}`}
+                          onClick={() => isHost && handleOptionChange(option.id, choice.value)}
+                          disabled={!isHost}
+                        >
+                          <span className="choice-label">{choice.label}</span>
+                          {choice.description && <span className="choice-description">{choice.description}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Start Game Button */}
+        {selectedGame && (
+          <>
             {isHost && canSelectGame(selectedGame) && (
               <button className="start-game-button" onClick={startGame}>
                 🚀 Start Game
@@ -187,7 +333,7 @@ function RoomLobby() {
                   : `Too many players! Maximum is ${selectedGame.maxPlayers}.`}
               </div>
             )}
-          </div>
+          </>
         )}
 
         {/* Game Selection Grid */}
@@ -226,6 +372,7 @@ function RoomLobby() {
         )}
       </div>
     </div>
+    </>
   );
 }
 

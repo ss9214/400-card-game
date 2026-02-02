@@ -136,3 +136,74 @@ function findGameByCodeAsync(code) {
     });
   });
 }
+
+// In-memory cache for game instances
+const gameInstances = {};
+
+/**
+ * Get a game instance with the appropriate game class
+ */
+exports.getGame = async (gameCode) => {
+  try {
+    // Check if we already have an instance in memory
+    if (gameInstances[gameCode]) {
+      console.log(`[Get Game] Using cached instance for ${gameCode}`);
+      return gameInstances[gameCode];
+    }
+
+    console.log(`[Get Game] Creating new instance for ${gameCode}`);
+    const Room = require('./roomModel');
+    
+    // Find the room to get game type
+    const room = await new Promise((resolve, reject) => {
+      Room.findRoomByCode(gameCode, (err, room) => {
+        if (err) reject(err);
+        else resolve(room);
+      });
+    });
+    
+    if (!room) throw new Error('Room not found');
+    if (!room.game_type) throw new Error('No game type selected');
+    
+    console.log(`[Get Game] Room game type: ${room.game_type}`);
+    
+    // Get players from the room
+    const players = await new Promise((resolve, reject) => {
+      Room.getRoomPlayers(gameCode, (err, players) => {
+        if (err) reject(err);
+        else resolve(players);
+      });
+    });
+    
+    console.log(`[Get Game] Found ${players.length} players`);
+    
+    // Get the game class from registry
+    const gameRegistry = require('../games/registry');
+    const GameClass = gameRegistry.getGameClass(room.game_type);
+    
+    if (!GameClass) throw new Error(`Game type ${room.game_type} not found`);
+    
+    // Create a new game instance with players
+    const gameInstance = new GameClass(players, gameCode);
+    
+    // Cache the instance
+    gameInstances[gameCode] = gameInstance;
+    console.log(`[Get Game] Cached instance for ${gameCode}`);
+    
+    return gameInstance;
+  } catch (error) {
+    console.error('Error getting game:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear a game instance from cache (e.g., when game ends)
+ */
+exports.clearGameInstance = (gameCode) => {
+  if (gameInstances[gameCode]) {
+    delete gameInstances[gameCode];
+    console.log(`[Clear Game] Removed cached instance for ${gameCode}`);
+  }
+};
+

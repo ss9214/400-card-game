@@ -3,9 +3,10 @@
  */
 
 const Game400 = require('./400/Game400');
-const GameSpades = require('./spades/GameSpades');
-const GameMafia = require('./mafia/GameMafia');
-const GameDrawGuess = require('./drawguess/GameDrawGuess');
+// const GameSpades = require('./spades/GameSpades');
+// const GameMafia = require('./mafia/GameMafia');
+// const GameDrawGuess = require('./drawguess/GameDrawGuess');
+const GameImposter = require('./imposter/GameImposter');
 
 class GameRegistry {
   constructor() {
@@ -18,9 +19,10 @@ class GameRegistry {
    */
   registerDefaultGames() {
     this.register(Game400);
-    this.register(GameSpades);
-    this.register(GameMafia);
-    this.register(GameDrawGuess);
+    // this.register(GameSpades);
+    // this.register(GameMafia);
+    // this.register(GameDrawGuess);
+    this.register(GameImposter);
   }
 
   /**

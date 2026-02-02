@@ -8,5 +8,6 @@ router.get('/:code', roomController.getRoomStatus);
 router.get('/:code/players', roomController.getRoomPlayers);
 router.post('/:code/select-game', roomController.selectGame);
 router.post('/:code/deselect-game', roomController.deselectGame);
+router.post('/:code/start-game', roomController.startGame);
 
 module.exports = router;

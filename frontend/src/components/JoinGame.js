@@ -24,13 +24,18 @@ function JoinGame() {
         playerId: shouldReusePlayer ? existingPlayerId : null
       });
 
-      const { room, player } = res.data;
+      const { room, player, players } = res.data;
 
       sessionStorage.setItem('roomCode', room.code);
       localStorage.setItem('roomCode', room.code);
       sessionStorage.setItem('playerName', player.name);
       sessionStorage.setItem('playerId', player.id);
       sessionStorage.removeItem('isHost');
+      
+      // Store initial player list
+      if (players) {
+        sessionStorage.setItem('initialPlayers', JSON.stringify(players));
+      }
 
       if (room.game_type) {
         navigate(`/room/${room.code}/${room.game_type}/lobby`);

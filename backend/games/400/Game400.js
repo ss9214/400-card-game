@@ -26,7 +26,8 @@ class Game400 extends CardGame {
       category: 'card',
       icon: '🃏',
       teams: [[0, 2], [1, 3]],
-      trumpSuit: 'hearts'
+      trumpSuit: 'hearts',
+      options: [] // No options currently for 400
     };
   }
 

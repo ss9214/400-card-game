@@ -17,6 +17,9 @@ function Home() {
       sessionStorage.setItem('playerName', player.name);
       sessionStorage.setItem('playerId', player.id);
       sessionStorage.setItem('isHost', 'true');
+      
+      // Store initial player list (just the host)
+      sessionStorage.setItem('initialPlayers', JSON.stringify([player]));
 
       navigate(`/room/${room.code}`);
     } catch (err) {

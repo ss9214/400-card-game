@@ -127,13 +127,13 @@
 }
 
 .player-name {
-  color: white;
+  color: #3d4343;
   font-weight: 600;
   font-size: 1.1rem;
 }
 
 .player-card.empty .player-name {
-  color: #7f8c8d;
+  color: #3d4343;
 }
 
 .start-button {

@@ -15,10 +15,12 @@ const io = new Server(server, {
 module.exports.io = io;
 const gameRoutes = require('./routes/gameRoutes');
 const roomRoutes = require('./routes/roomRoutes');
+const gameActionRoutes = require('./routes/gameActionRoutes');
 app.use(cors());
 app.use(express.json());
 app.use('/api/games', gameRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/games', gameActionRoutes);
 
 // SOCKET.IO
 const Game = require('./models/gameModel');
@@ -63,6 +65,11 @@ io.on('connection', (socket) => {
   socket.on('deselect-game', ({ roomCode }) => {
     console.log(`Game deselected for room ${roomCode}`);
     io.to(roomCode).emit('game-deselected');
+  });
+
+  socket.on('game-started', ({ roomCode, gameType }) => {
+    console.log(`Game ${gameType} started for room ${roomCode}`);
+    io.to(roomCode).emit('game-started', { gameType });
   });
 
   socket.on('join-lobby', async ({ gameCode, playerId }) => {
@@ -310,6 +317,29 @@ io.on('connection', (socket) => {
         });
       });
     });
+  });
+
+  // Imposter game socket events
+  socket.on('imposter-action', async ({ roomCode, action, data }) => {
+    console.log(`Imposter action: ${action} for room ${roomCode}`);
+    
+    // Broadcast action to all players in the room
+    io.to(roomCode).emit('imposter-action', { action, data });
+    
+    // Specific event handling
+    if (action === 'imposter-revealed') {
+      io.to(roomCode).emit('imposter-revealed', data);
+    } else if (action === 'game-finished') {
+      io.to(roomCode).emit('game-finished', data);
+    } else if (action === 'guess-submitted') {
+      io.to(roomCode).emit('guess-submitted', data);
+    }
+  });
+
+  // Back to lobby event - owner sends all players back
+  socket.on('back-to-lobby', ({ roomCode }) => {
+    console.log(`Back to lobby for room ${roomCode}`);
+    io.to(roomCode).emit('back-to-lobby');
   });
 });
 

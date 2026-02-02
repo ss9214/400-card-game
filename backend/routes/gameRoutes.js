@@ -23,25 +23,26 @@ router.get('/bets/:code',       gameController.getBets);
 router.post('/trick-win',       gameController.recordTrickWin);
 router.post('/finish-round/:code', gameController.finishRound);
 
-router.get('/:code/state', (req, res) => {
-  Game.getGameState(req.params.code, (err, state) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(state);
-  });
-});
+// OLD 400 game routes - commented out to avoid conflicts with new game system
+// router.get('/:code/state', (req, res) => {
+//   Game.getGameState(req.params.code, (err, state) => {
+//     if (err) return res.status(500).json({ error: err.message });
+//     res.json(state);
+//   });
+// });
 
-router.post('/:code/state', (req, res) => {
-  Game.updateGameState(req.params.code, req.body, (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(result);
-  });
-});
+// router.post('/:code/state', (req, res) => {
+//   Game.updateGameState(req.params.code, req.body, (err, result) => {
+//     if (err) return res.status(500).json({ error: err.message });
+//     res.json(result);
+//   });
+// });
 
-router.post('/:code/reset', (req, res) => {
-  Game.resetGame(req.params.code, (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(result);
-  });
-});
+// router.post('/:code/reset', (req, res) => {
+//   Game.resetGame(req.params.code, (err, result) => {
+//     if (err) return res.status(500).json({ error: err.message });
+//     res.json(result);
+//   });
+// });
 
 module.exports = router;

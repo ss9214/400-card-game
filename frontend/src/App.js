@@ -6,6 +6,8 @@ import RoomLobby from './components/RoomLobby';
 import Lobby from './components/Lobby';
 import GamePlay from './components/GamePlay';
 import GameFinished from './components/GameFinished';
+import ImposterSetup from './components/ImposterSetup';
+import ImposterPlay from './components/ImposterPlay';
 import RulesButton from './components/RulesButton';
 
 function AppContent() {
@@ -27,6 +29,8 @@ function AppContent() {
         <Route path="/room/:code/spades/lobby" element={<Lobby />} />
         <Route path="/room/:code/spades/play" element={<GamePlay />} />
         <Route path="/room/:code/spades/finished" element={<GameFinished />} />
+        <Route path="/room/:code/imposter/lobby" element={<ImposterSetup />} />
+        <Route path="/room/:code/imposter/play" element={<ImposterPlay />} />
         {/* Legacy routes for backward compatibility */}
         <Route path="/game/join" element={<JoinGame />} />
         <Route path="/game/lobby" element={<Lobby />} />
