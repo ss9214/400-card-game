@@ -299,7 +299,7 @@ function ImposterPlay() {
             </div>
           )}
 
-          {isOwner && guessSubmitted && gameState === 'guessing' && (
+          {isOwner && guessSubmitted && imposterCaught === null && (
             <div className="determine-winner-section">
               <h3>Did the players catch the imposter?</h3>
               <div className="winner-buttons">
