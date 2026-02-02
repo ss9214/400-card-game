@@ -12,7 +12,7 @@ const client = new DynamoDBClient({
 
 async function createRoomsTable() {
   const params = {
-    TableName: process.env.DYNAMODB_ROOMS_TABLE || 'rooms_dev',
+    TableName: process.env.DYNAMODB_ROOMS_TABLE || 'rooms',
     KeySchema: [
       { AttributeName: 'code', KeyType: 'HASH' } // Partition key
     ],
