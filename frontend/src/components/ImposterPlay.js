@@ -11,14 +11,12 @@ function ImposterPlay() {
   const [gameState, setGameState] = useState(null);
   const [players, setPlayers] = useState([]);
   const [imposterName, setImposterName] = useState(null);
-  const [imposterPlayerId, setImposterPlayerId] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [isImposter, setIsImposter] = useState(false);
   const [imposterGuess, setImposterGuess] = useState('');
   const [guessSubmitted, setGuessSubmitted] = useState(false);
   const [gameResult, setGameResult] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [imposterCaught, setImposterCaught] = useState(null);
 
   const currentPlayerId = sessionStorage.getItem('playerId');
 
@@ -80,7 +78,6 @@ function ImposterPlay() {
 
     socket.on('imposter-revealed', (data) => {
       setImposterName(data.imposterName);
-      setImposterPlayerId(data.imposterPlayerId);
       setIsImposter(data.imposterPlayerId === currentPlayerId);
       setGameState('guessing');
     });
@@ -116,7 +113,6 @@ function ImposterPlay() {
       return;
     }
     
-    const actionLoading = true;
     try {
       const response = await api.post(`/games/${code}/action`, {
         playerId: currentPlayerId,
@@ -126,7 +122,6 @@ function ImposterPlay() {
 
       if (response.data.success) {
         setImposterName(response.data.imposterName);
-        setImposterPlayerId(response.data.imposterPlayerId);
         setIsImposter(response.data.imposterPlayerId === currentPlayerId);
         setGameState('guessing');
         

@@ -48,7 +48,7 @@ function Lobby() {
       socket.off('update-lobby');
       socket.off('game-started');
     };
-  }, [gameCode, playerId, navigate]);
+  }, [gameCode, playerId, playerName, navigate]);
   
   // Ensure current player is always in the list if we have their info
   const displayPlayers = players.length > 0 ? players : 

@@ -11,7 +11,7 @@ function RulesButton({ gameType = '400' }) {
   let context = 'game'; // default to showing game rules
   if (location.pathname === '/' || location.pathname === '/join') {
     context = 'home';
-  } else if (location.pathname.match(/^\/room\/[^\/]+$/) && gameType === 'room-lobby') {
+  } else if (location.pathname.match(/^\/room\/[^/]+$/) && gameType === 'room-lobby') {
     context = 'room-lobby'; // in room but no game selected yet
   }
 
