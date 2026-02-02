@@ -7,26 +7,15 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://party-games.vercel.app',
-  'https://sri-party-games.vercel.app',
-  'https://party-games-dev.vercel.app'
-];
-
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
-    credentials: true
+    origin: '*',
+    methods: ['GET', 'POST']
   }
 });
 module.exports.io = io;
 const gameRoutes = require('./routes/gameRoutes');
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 app.use('/api/games', gameRoutes);
 
