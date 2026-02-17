@@ -1,6 +1,6 @@
 # Multi-Game Platform (Dev Branch)
 
-A Jackbox-style multiplayer card game platform supporting multiple card games. Currently features the 400 Card Game with plans to add Spades and other games.
+A Jackbox-style multiplayer card game platform supporting multiple card games. Currently features the 400 Card Game and Imposter with plans to add Spades and other games.
 
 🌐 **Live Site**: [https://sri-party-games.vercel.app/](https://sri-party-games.vercel.app)
 
